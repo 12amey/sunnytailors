@@ -5,10 +5,10 @@ import {
   Sparkles, Trash2, UserRound, Users, X,
 } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
-import { measurementFields, type Customer, type CustomerDraft, type CustomerEvent, type Language, type MeasurementField, type ScanResult } from './types';
+import { measurementFields, type Customer, type CustomerDraft, type CustomerEvent, type CustomerOrder, type CustomerOrderPayment, type Language, type MeasurementField, type ScanResult } from './types';
 
 const emptyDraft = (): CustomerDraft => ({
-  name: '', phone: '', notes: '', garment_type: '', measurements: {}, measurement_notes: '', measurement_date: '',
+  name: '', phone: '', notes: '', garment_type: '', measurements: {}, measurement_notes: '', measurement_date: '', design_image: '',
 });
 
 const copy = {
@@ -48,6 +48,7 @@ const copy = {
     batchDone: 'Import finished', batchProgress: 'Photos processed', batchError: 'Could not import this photo', batchEmpty: 'No customer entries with measurements were found in this photo.', batchNameFallback: 'Name not readable', batchSize: 'Each photo must be smaller than 4 MB.',
     history: 'Customer history', noHistory: 'No activity recorded yet.', payment: 'Add payment', paymentTitle: 'Record a payment', amount: 'Amount', paymentDate: 'Payment date', paymentMethod: 'Method', paymentNote: 'Note (optional)', cash: 'Cash', upi: 'UPI', otherMethod: 'Other', savePayment: 'Save payment', paymentSaved: 'Payment recorded.', paymentError: 'Could not record payment. Run the latest Supabase schema first.', totalPaid: 'Total paid', measurementAdded: 'Measurements added', measurementUpdated: 'Measurements updated', designSavedEvent: 'Design sketch saved', paymentEvent: 'Payment received', amountRequired: 'Enter a valid amount greater than zero.',
     sariGroup: '9 vaari drape', topGroup: 'Top', pantsGroup: 'Pants',
+    addBill: 'New bill / order', billTitle: 'New tailoring bill', linkedCustomer: 'Find customer', billGarment: 'Garment / work', billDescription: 'Work description', billAmount: 'Total bill (₹)', advanceAmount: 'Advance received (₹)', balanceDue: 'Balance due', advanceMethod: 'Advance method', dueDate: 'Delivery date', orderNotes: 'Order notes', createBill: 'Save bill', selectCustomer: 'Search and select an existing customer', chooseCustomer: 'Select customer', noCustomerMatch: 'No matching customer found.', billSaved: 'Bill saved', billError: 'Could not save this bill. Run the latest Supabase schema and try again.', bills: 'Bills and tailoring orders', noBills: 'No bills yet. Add a bill to track advance and balance.', order: 'Order', status: 'Status', orderNew: 'New', orderInProgress: 'In progress', orderReady: 'Ready', orderDelivered: 'Delivered', orderCancelled: 'Cancelled', totalBill: 'Total', paidSoFar: 'Paid', due: 'Due', remainingPayment: 'Add payment', editBill: 'Edit bill', paymentForBill: 'Attach to bill', noOrderLink: 'Unassigned payment', orderPayment: 'Order payment', advanceStage: 'Advance', partPaymentStage: 'Part payment', finalPaymentStage: 'Final balance', attachedMeasurements: 'Current measurements will be saved with this bill.', sketchDuringEntry: 'Design scratchpad', createOrEditSketchHint: 'Draw the design now; it will save with this customer. You can edit it later.', sketchEdited: 'Sketch changes are saved with the customer.', paymentExceedsDue: 'Payment is more than this bill’s remaining balance.',
   },
   mr: {
     subtitle: 'ग्राहक वही', search: 'नाव, फोन किंवा माप शोधा…', add: 'ग्राहक जोडा',
@@ -85,6 +86,7 @@ const copy = {
     batchDone: 'नोंदी जतन झाल्या', batchProgress: 'पूर्ण केलेले फोटो', batchError: 'हा फोटो जतन करता आला नाही', batchEmpty: 'या फोटोमध्ये मापांसह ग्राहक नोंदी सापडल्या नाहीत.', batchNameFallback: 'नाव वाचता आले नाही', batchSize: 'प्रत्येक फोटो ४ MB पेक्षा लहान हवा.',
     history: 'ग्राहकाचा इतिहास', noHistory: 'अजून कोणतीही नोंद नाही.', payment: 'पैसे नोंदवा', paymentTitle: 'पेमेंट नोंदवा', amount: 'रक्कम', paymentDate: 'पेमेंटची तारीख', paymentMethod: 'पद्धत', paymentNote: 'नोंद (ऐच्छिक)', cash: 'रोख', upi: 'UPI', otherMethod: 'इतर', savePayment: 'पेमेंट जतन करा', paymentSaved: 'पेमेंट नोंदवले.', paymentError: 'पेमेंट नोंदवता आले नाही. आधी नवीनतम Supabase schema चालवा.', totalPaid: 'एकूण मिळाले', measurementAdded: 'मापे जोडली', measurementUpdated: 'मापे बदलली', designSavedEvent: 'डिझाइन जतन केले', paymentEvent: 'पेमेंट मिळाले', amountRequired: 'शून्यापेक्षा जास्त योग्य रक्कम लिहा.',
     sariGroup: '९ वारी नेसणी', topGroup: 'टॉप', pantsGroup: 'पँट',
+    addBill: 'नवीन बिल / ऑर्डर', billTitle: 'नवीन शिलाई बिल', linkedCustomer: 'ग्राहक शोधा', billGarment: 'कपडा / काम', billDescription: 'कामाचे वर्णन', billAmount: 'एकूण बिल (₹)', advanceAmount: 'आगाऊ मिळाले (₹)', balanceDue: 'बाकी रक्कम', advanceMethod: 'आगाऊची पद्धत', dueDate: 'देण्याची तारीख', orderNotes: 'ऑर्डरची नोंद', createBill: 'बिल जतन करा', selectCustomer: 'जुना ग्राहक शोधून निवडा', chooseCustomer: 'ग्राहक निवडा', noCustomerMatch: 'जुळणारा ग्राहक सापडला नाही.', billSaved: 'बिल जतन झाले', billError: 'बिल जतन झाले नाही. नवीनतम Supabase schema चालवून पुन्हा प्रयत्न करा.', bills: 'बिले आणि शिलाई ऑर्डर', noBills: 'अजून बिल नाही. आगाऊ आणि बाकी रक्कम पाहण्यासाठी बिल जोडा.', order: 'ऑर्डर', status: 'स्थिती', orderNew: 'नवीन', orderInProgress: 'काम सुरू', orderReady: 'तयार', orderDelivered: 'दिलेली', orderCancelled: 'रद्द', totalBill: 'एकूण', paidSoFar: 'मिळाले', due: 'बाकी', remainingPayment: 'पेमेंट जोडा', editBill: 'बिल बदला', paymentForBill: 'बिलाशी जोडा', noOrderLink: 'बिलाशी जोडलेले नाही', orderPayment: 'ऑर्डर पेमेंट', advanceStage: 'आगाऊ', partPaymentStage: 'अंशतः पेमेंट', finalPaymentStage: 'अंतिम बाकी', attachedMeasurements: 'सध्याची मापे या बिलासोबत जतन होतील.', sketchDuringEntry: 'डिझाइन स्क्रॅचपॅड', createOrEditSketchHint: 'आत्ताच डिझाइन काढा; ते ग्राहकासोबत जतन होईल. नंतर पुन्हा बदलता येईल.', sketchEdited: 'डिझाइन ग्राहकासोबत जतन झाले.', paymentExceedsDue: 'पेमेंट बिलाच्या बाकी रकमेपेक्षा जास्त आहे.',
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -213,30 +215,43 @@ export default function App() {
   const [batchError, setBatchError] = useState('');
   const [designImage, setDesignImage] = useState('');
   const [designDirty, setDesignDirty] = useState(false);
+  const [draftDesignDirty, setDraftDesignDirty] = useState(false);
   const [designSaving, setDesignSaving] = useState(false);
   const [designError, setDesignError] = useState('');
   const [designMessage, setDesignMessage] = useState('');
   const [designMode, setDesignMode] = useState<'pen' | 'eraser'>('pen');
   const [designColor, setDesignColor] = useState('#27253a');
   const [events, setEvents] = useState<CustomerEvent[]>([]);
+  const [orders, setOrders] = useState<CustomerOrder[]>([]);
+  const [orderPayments, setOrderPayments] = useState<CustomerOrderPayment[]>([]);
   const [historyError, setHistoryError] = useState('');
   const [paymentOpen, setPaymentOpen] = useState(false);
   const [paymentSaving, setPaymentSaving] = useState(false);
   const [paymentError, setPaymentError] = useState('');
-  const [paymentDraft, setPaymentDraft] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), method: 'cash', notes: '' });
+  const [paymentDraft, setPaymentDraft] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), method: 'cash', stage: 'part', order_id: '', notes: '' });
+  const [orderOpen, setOrderOpen] = useState(false);
+  const [orderSaving, setOrderSaving] = useState(false);
+  const [orderError, setOrderError] = useState('');
+  const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
+  const [orderCustomerId, setOrderCustomerId] = useState('');
+  const [orderCustomerQuery, setOrderCustomerQuery] = useState('');
+  const [orderDraft, setOrderDraft] = useState({ garment_type: '', description: '', total_amount: '', advance_amount: '', advance_method: 'cash', due_date: '', status: 'new', notes: '' });
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const designCanvasRef = useRef<HTMLCanvasElement>(null);
+  const formDesignCanvasRef = useRef<HTMLCanvasElement>(null);
   const designSectionRef = useRef<HTMLDivElement>(null);
   const drawingRef = useRef(false);
   const drawingHistoryRef = useRef<string[]>([]);
+  const formDrawingHistoryRef = useRef<string[]>([]);
   const clearedDrawingRef = useRef(false);
+  const formClearedDrawingRef = useRef(false);
 
   const loadCustomers = useCallback(async () => {
     if (!supabase) { setLoading(false); return; }
     setLoading(true);
     setLoadError('');
-    const { data, error } = await supabase.from('customers').select('id,name,phone,notes,garment_type,measurements,measurement_notes,measurement_date,created_at,updated_at').order('updated_at', { ascending: false });
+    const { data, error } = await supabase.from('customers').select('id,name,phone,notes,garment_type,measurements,measurement_notes,measurement_date,design_image,created_at,updated_at').order('updated_at', { ascending: false });
     if (error) setLoadError(error.message || t.connectionError);
     else {
       setCustomers((data ?? []) as Customer[]);
@@ -265,6 +280,12 @@ export default function App() {
   const selectedCustomerFields = activeCustomer ? categoryFields[garmentCategory(activeCustomer.garment_type)] ?? [...measurementFields] : [...measurementFields];
   const customerGroupedMeasurements = groupMeasurements(selectedCustomerFields);
   const totalPaid = events.filter((item) => item.event_type === 'payment').reduce((total, item) => total + Number(item.amount || 0), 0);
+  const formatMoney = (amount: number) => new Intl.NumberFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(amount);
+  const orderPaid = (order: CustomerOrder) => Number(order.advance_amount || 0) + orderPayments.filter((payment) => payment.order_id === order.id).reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const orderBalance = (order: CustomerOrder) => Math.max(0, Number(order.total_amount || 0) - orderPaid(order));
+  const orderCustomerMatches = orderCustomerQuery.trim()
+    ? customers.filter((customer) => normalizeSearch(`${customer.name} ${customer.phone}`).includes(normalizeSearch(orderCustomerQuery.trim())))
+    : customers;
   const groupTitle = (group: string) => group === 'body' ? t.bodyGroup : group === 'length' ? t.lengthGroup : group === 'arms' ? t.armsGroup : group === 'neck' ? t.neckGroup : group === 'top' ? t.topGroup : group === 'pants' ? t.pantsGroup : t.sariGroup;
 
   useEffect(() => {
@@ -287,10 +308,22 @@ export default function App() {
     else { setHistoryError(''); setEvents((data ?? []) as CustomerEvent[]); }
   }, [t.paymentError]);
 
+  const loadCustomerOrders = useCallback(async (customerId: string) => {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('customer_orders').select('*').eq('customer_id', customerId).order('created_at', { ascending: false });
+    if (error) { setHistoryError(t.billError); setOrders([]); setOrderPayments([]); return; }
+    const loadedOrders = (data ?? []) as CustomerOrder[];
+    setOrders(loadedOrders);
+    if (!loadedOrders.length) { setOrderPayments([]); return; }
+    const { data: payments, error: paymentLoadError } = await supabase.from('customer_order_payments').select('*').in('order_id', loadedOrders.map((order) => order.id)).order('created_at', { ascending: false });
+    if (paymentLoadError) { setHistoryError(t.billError); setOrderPayments([]); }
+    else setOrderPayments((payments ?? []) as CustomerOrderPayment[]);
+  }, [t.billError]);
+
   useEffect(() => {
-    setEvents([]); setHistoryError('');
-    if (selected) void loadCustomerEvents(selected);
-  }, [selected, loadCustomerEvents]);
+    setEvents([]); setOrders([]); setOrderPayments([]); setHistoryError('');
+    if (selected) { void loadCustomerEvents(selected); void loadCustomerOrders(selected); }
+  }, [selected, loadCustomerEvents, loadCustomerOrders]);
 
   useEffect(() => {
     const canvas = designCanvasRef.current;
@@ -303,6 +336,17 @@ export default function App() {
     image.src = designImage;
   }, [designImage, activeCustomer?.id]);
 
+  useEffect(() => {
+    const canvas = formDesignCanvasRef.current;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    if (!draft.design_image) return;
+    const image = new Image();
+    image.onload = () => { context.clearRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height); };
+    image.src = draft.design_image;
+  }, [formOpen, editingId, draft.design_image]);
+
   const canvasPoint = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const canvas = event.currentTarget;
     const rect = canvas.getBoundingClientRect();
@@ -314,14 +358,16 @@ export default function App() {
     const point = canvasPoint(event);
     const context = canvas.getContext('2d');
     if (!context) return;
-    if (drawingHistoryRef.current.length >= 20) drawingHistoryRef.current.shift();
-    drawingHistoryRef.current.push(canvas.toDataURL('image/webp', 0.65));
+    const history = formOpen ? formDrawingHistoryRef.current : drawingHistoryRef.current;
+    if (history.length >= 20) history.shift();
+    history.push(canvas.toDataURL('image/webp', 0.65));
     drawingRef.current = true;
     clearedDrawingRef.current = false;
     canvas.setPointerCapture(event.pointerId);
     context.beginPath(); context.moveTo(point.x, point.y);
     context.lineCap = 'round'; context.lineJoin = 'round';
-    setDesignDirty(true); setDesignMessage(''); setDesignError('');
+    if (formOpen) setDraftDesignDirty(true); else setDesignDirty(true);
+    setDesignMessage(''); setDesignError('');
   };
 
   const continueDrawing = (event: ReactPointerEvent<HTMLCanvasElement>) => {
@@ -343,29 +389,34 @@ export default function App() {
   };
 
   const clearDesign = () => {
-    const canvas = designCanvasRef.current;
+    const canvas = formOpen ? formDesignCanvasRef.current : designCanvasRef.current;
     const context = canvas?.getContext('2d');
     if (!canvas || !context) return;
-    if (drawingHistoryRef.current.length >= 20) drawingHistoryRef.current.shift();
-    drawingHistoryRef.current.push(canvas.toDataURL('image/webp', 0.65));
+    const history = formOpen ? formDrawingHistoryRef.current : drawingHistoryRef.current;
+    if (history.length >= 20) history.shift();
+    history.push(canvas.toDataURL('image/webp', 0.65));
     context.clearRect(0, 0, canvas.width, canvas.height);
-    clearedDrawingRef.current = true; setDesignDirty(true); setDesignMessage(''); setDesignError('');
+    if (formOpen) { formClearedDrawingRef.current = true; setDraftDesignDirty(true); }
+    else { clearedDrawingRef.current = true; setDesignDirty(true); }
+    setDesignMessage(''); setDesignError('');
   };
 
   const undoDesign = () => {
-    const canvas = designCanvasRef.current;
+    const canvas = formOpen ? formDesignCanvasRef.current : designCanvasRef.current;
     const context = canvas?.getContext('2d');
     if (!canvas || !context) return;
-    const previous = drawingHistoryRef.current.pop();
+    const history = formOpen ? formDrawingHistoryRef.current : drawingHistoryRef.current;
+    const previous = history.pop();
     context.clearRect(0, 0, canvas.width, canvas.height);
-    if (!previous) clearedDrawingRef.current = true;
+    if (!previous) { if (formOpen) formClearedDrawingRef.current = true; else clearedDrawingRef.current = true; }
     else {
       const image = new Image();
       image.onload = () => { context.drawImage(image, 0, 0, canvas.width, canvas.height); };
       image.src = previous;
-      clearedDrawingRef.current = false;
+      if (formOpen) formClearedDrawingRef.current = false; else clearedDrawingRef.current = false;
     }
-    setDesignDirty(true); setDesignMessage(''); setDesignError('');
+    if (formOpen) setDraftDesignDirty(true); else setDesignDirty(true);
+    setDesignMessage(''); setDesignError('');
   };
 
   const saveDesign = async () => {
@@ -385,14 +436,14 @@ export default function App() {
 
   const startNew = () => {
     setEditingId(null); setDraft(emptyDraft()); setGarmentChoice(''); setFormError(''); setScanMessage(''); setScanError('');
-    setScanResult(null); setPhoto(null); setRotation(0); setFormOpen(true);
+    setScanResult(null); setPhoto(null); setRotation(0); setDraftDesignDirty(false); formClearedDrawingRef.current = false; formDrawingHistoryRef.current = []; setFormOpen(true);
   };
 
   const startEdit = (customer: Customer) => {
     setEditingId(customer.id);
-    setDraft({ name: customer.name, phone: customer.phone ?? '', notes: customer.notes ?? '', garment_type: customer.garment_type ?? '', measurements: customer.measurements ?? {}, measurement_notes: customer.measurement_notes ?? '', measurement_date: customer.measurement_date ?? '' });
+    setDraft({ name: customer.name, phone: customer.phone ?? '', notes: customer.notes ?? '', garment_type: customer.garment_type ?? '', measurements: customer.measurements ?? {}, measurement_notes: customer.measurement_notes ?? '', measurement_date: customer.measurement_date ?? '', design_image: customer.design_image ?? '' });
     setGarmentChoice(garmentCategory(customer.garment_type));
-    setFormError(''); setScanMessage(''); setScanError(''); setScanResult(null); setPhoto(null); setRotation(0); setFormOpen(true);
+    setFormError(''); setScanMessage(''); setScanError(''); setScanResult(null); setPhoto(null); setRotation(0); setDraftDesignDirty(false); formClearedDrawingRef.current = false; formDrawingHistoryRef.current = []; setFormOpen(true);
   };
 
   const updateMeasurement = (key: MeasurementField, value: string) => setDraft((current) => ({ ...current, measurements: { ...current.measurements, [key]: value } }));
@@ -505,7 +556,9 @@ export default function App() {
     if (!draft.name.trim()) { setFormError(t.required); return; }
     if (!supabase) return;
     setSaving(true); setFormError('');
-    const payload = { ...draft, name: draft.name.trim(), phone: draft.phone.trim(), updated_at: new Date().toISOString() };
+    const image = formDesignCanvasRef.current;
+    const customerDesign = draftDesignDirty ? (formClearedDrawingRef.current ? '' : image?.toDataURL('image/webp', 0.82) ?? draft.design_image) : draft.design_image;
+    const payload = { ...draft, design_image: customerDesign, name: draft.name.trim(), phone: draft.phone.trim(), updated_at: new Date().toISOString() };
     const result = editingId
       ? await supabase.from('customers').update(payload).eq('id', editingId).select().single()
       : await supabase.from('customers').insert(payload).select().single();
@@ -516,27 +569,97 @@ export default function App() {
       title: editingId ? t.measurementUpdated : t.measurementAdded,
       amount: null,
       notes: payload.measurement_notes || '',
-      details: { garment_type: payload.garment_type, measurements: payload.measurements, measurement_date: payload.measurement_date },
+      details: { garment_type: payload.garment_type, measurements: payload.measurements, measurement_date: payload.measurement_date, design_saved: draftDesignDirty },
     });
     if (eventResult.error) setHistoryError(eventResult.error.message);
     await loadCustomers();
-    setSelected(result.data.id); await loadCustomerEvents(result.data.id); setSaving(false); setFormOpen(false);
+    setSelected(result.data.id); setDraft((current) => ({ ...current, design_image: customerDesign ?? '' })); setDesignImage(customerDesign ?? ''); setDraftDesignDirty(false); formClearedDrawingRef.current = false; formDrawingHistoryRef.current = []; await loadCustomerEvents(result.data.id); setSaving(false); setFormOpen(false);
   };
 
   const savePayment = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const amount = Number(paymentDraft.amount);
     if (!activeCustomer || !supabase || !Number.isFinite(amount) || amount <= 0) { setPaymentError(t.amountRequired); return; }
+    const linkedOrder = orders.find((order) => order.id === paymentDraft.order_id);
+    if (linkedOrder && amount > orderBalance(linkedOrder) + 0.001) { setPaymentError(`${t.paymentExceedsDue} ${t.due}: ${formatMoney(orderBalance(linkedOrder))}`); return; }
     setPaymentSaving(true); setPaymentError('');
+    if (linkedOrder) {
+      const paymentResult = await supabase.from('customer_order_payments').insert({
+        order_id: linkedOrder.id, amount, method: paymentDraft.method, stage: paymentDraft.stage,
+        notes: paymentDraft.notes.trim(), payment_date: paymentDraft.date,
+      });
+      if (paymentResult.error) { setPaymentError(paymentResult.error.message || t.paymentError); setPaymentSaving(false); return; }
+    }
     const { error } = await supabase.from('customer_events').insert({
       customer_id: activeCustomer.id, event_type: 'payment', title: t.paymentEvent,
-      amount, notes: paymentDraft.notes.trim(), details: { method: paymentDraft.method, payment_date: paymentDraft.date },
+      amount, notes: paymentDraft.notes.trim(), details: { method: paymentDraft.method, payment_date: paymentDraft.date, payment_stage: paymentDraft.stage, order_id: linkedOrder?.id ?? '', order_number: linkedOrder?.order_number ?? '' },
       created_at: paymentDraft.date ? new Date(`${paymentDraft.date}T12:00:00`).toISOString() : new Date().toISOString(),
     });
-    if (error) { setPaymentError(error.message || t.paymentError); setPaymentSaving(false); return; }
-    await loadCustomerEvents(activeCustomer.id);
-    setPaymentDraft({ amount: '', date: new Date().toISOString().slice(0, 10), method: 'cash', notes: '' });
+    if (error) setHistoryError(t.paymentError);
+    await Promise.all([loadCustomerEvents(activeCustomer.id), loadCustomerOrders(activeCustomer.id)]);
+    setPaymentDraft({ amount: '', date: new Date().toISOString().slice(0, 10), method: 'cash', stage: 'part', order_id: '', notes: '' });
     setPaymentSaving(false); setPaymentOpen(false);
+  };
+
+  const startNewOrder = (customerId = activeCustomer?.id ?? '') => {
+    const customer = customers.find((item) => item.id === customerId);
+    setEditingOrderId(null); setOrderError(''); setOrderCustomerId(customer?.id ?? '');
+    setOrderCustomerQuery(customer ? `${customer.name}${customer.phone ? ` · ${customer.phone}` : ''}` : '');
+    setOrderDraft({ garment_type: customer?.garment_type ?? '', description: '', total_amount: '', advance_amount: '', advance_method: 'cash', due_date: '', status: 'new', notes: '' });
+    setOrderOpen(true);
+  };
+
+  const startEditOrder = (order: CustomerOrder) => {
+    const customer = customers.find((item) => item.id === order.customer_id);
+    setEditingOrderId(order.id); setOrderError(''); setOrderCustomerId(order.customer_id);
+    setOrderCustomerQuery(customer ? `${customer.name}${customer.phone ? ` · ${customer.phone}` : ''}` : '');
+    setOrderDraft({ garment_type: order.garment_type, description: order.description, total_amount: String(order.total_amount), advance_amount: String(order.advance_amount), advance_method: order.advance_method, due_date: order.due_date, status: order.status, notes: order.notes });
+    setOrderOpen(true);
+  };
+
+  const saveOrder = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!supabase || !orderCustomerId) { setOrderError(t.chooseCustomer); return; }
+    const customer = customers.find((item) => item.id === orderCustomerId);
+    const total = Number(orderDraft.total_amount);
+    const advance = Number(orderDraft.advance_amount || 0);
+    if (!customer || !Number.isFinite(total) || total <= 0 || !Number.isFinite(advance) || advance < 0 || advance > total) { setOrderError(t.amountRequired); return; }
+    const existing = orders.find((item) => item.id === editingOrderId);
+    if (existing && total < orderPaid(existing) - Number(existing.advance_amount || 0) + advance) { setOrderError(`${t.due}: ${formatMoney(orderPaid(existing))}`); return; }
+    setOrderSaving(true); setOrderError('');
+    const orderNumber = existing?.order_number ?? `ST-${Date.now().toString().slice(-8)}`;
+    const payload = {
+      customer_id: customer.id, order_number: orderNumber, garment_type: orderDraft.garment_type.trim(),
+      description: orderDraft.description.trim(), total_amount: total, advance_amount: advance,
+      advance_method: orderDraft.advance_method, due_date: orderDraft.due_date, status: orderDraft.status,
+      notes: orderDraft.notes.trim(), measurements: customer.measurements ?? {}, measurement_date: customer.measurement_date ?? '',
+      updated_at: new Date().toISOString(),
+    };
+    const result = existing
+      ? await supabase.from('customer_orders').update(payload).eq('id', existing.id).select().single()
+      : await supabase.from('customer_orders').insert(payload).select().single();
+    if (result.error) { setOrderError(result.error.message || t.billError); setOrderSaving(false); return; }
+    const eventType = existing ? 'order_updated' : 'order_created';
+    const eventResult = await supabase.from('customer_events').insert({
+      customer_id: customer.id, event_type: eventType,
+      title: `${existing ? t.editBill : t.addBill} · ${orderNumber}`, amount: total,
+      notes: payload.notes,
+      details: { order_id: result.data.id, order_number: orderNumber, garment_type: payload.garment_type, total_amount: total, advance_amount: advance, measurements: payload.measurements, due_date: payload.due_date, status: payload.status },
+    });
+    if (!existing && advance > 0) {
+      await supabase.from('customer_events').insert({ customer_id: customer.id, event_type: 'payment', title: t.paymentEvent, amount: advance, notes: '', details: { method: payload.advance_method, payment_stage: 'advance', payment_date: new Date().toISOString().slice(0, 10), order_id: result.data.id, order_number: orderNumber } });
+    }
+    if (eventResult.error) setHistoryError(t.billError);
+    setSelected(customer.id);
+    await Promise.all([loadCustomerEvents(customer.id), loadCustomerOrders(customer.id), loadCustomers()]);
+    setOrderSaving(false); setOrderOpen(false);
+  };
+
+  const openPayment = (order?: CustomerOrder) => {
+    const due = order ? orderBalance(order) : 0;
+    setPaymentError('');
+    setPaymentDraft({ amount: order && due > 0 ? due.toFixed(2) : '', date: new Date().toISOString().slice(0, 10), method: 'cash', stage: order ? (due > 0 ? 'final' : 'part') : 'advance', order_id: order?.id ?? '', notes: '' });
+    setPaymentOpen(true);
   };
 
   const deleteCustomer = async () => {
@@ -573,7 +696,7 @@ export default function App() {
             <h1>{t.records}</h1>
             <p className="heading-copy">{customers.length} {t.customers}</p>
           </div>
-          <div className="heading-actions"><button className="secondary-button" onClick={() => { setBatchOpen(true); setBatchPhotos([]); setBatchError(''); setBatchStatus(''); setBatchProgress(0); }}><FileStack size={17} />{t.batch}</button><button className="primary-button" onClick={startNew}><Plus size={18} />{t.add}</button></div>
+          <div className="heading-actions"><button className="secondary-button" onClick={() => { setBatchOpen(true); setBatchPhotos([]); setBatchError(''); setBatchStatus(''); setBatchProgress(0); }}><FileStack size={17} />{t.batch}</button><button className="secondary-button" onClick={() => startNewOrder('')}><Plus size={16} />{t.addBill}</button><button className="primary-button" onClick={startNew}><Plus size={18} />{t.add}</button></div>
         </section>
 
         {!isSupabaseConfigured ? (
@@ -617,13 +740,32 @@ export default function App() {
                   }) : <p className="muted-copy">{t.emptyMeasure}</p>}
                   {activeCustomer.measurement_notes && <div className="measure-notes"><span>{t.measureNotes}</span><p dir="auto">{activeCustomer.measurement_notes}</p></div>}
                 </div>
+                <div className="detail-section"><div className="section-heading"><h3>{t.bills}</h3><button className="secondary-button payment-add" onClick={() => startNewOrder(activeCustomer.id)}><Plus size={15} />{t.addBill}</button></div>
+                  {orders.length === 0 ? <p className="muted-copy">{t.noBills}</p> : <div className="orders-list">{orders.map((order) => {
+                    const paid = orderPaid(order);
+                    const due = orderBalance(order);
+                    const statusText = order.status === 'in_progress' ? t.orderInProgress : order.status === 'ready' ? t.orderReady : order.status === 'delivered' ? t.orderDelivered : order.status === 'cancelled' ? t.orderCancelled : t.orderNew;
+                    const extraPayments = orderPayments.filter((payment) => payment.order_id === order.id);
+                    return <article className="order-card" key={order.id}><div className="order-card-head"><div><strong>{order.order_number}</strong><span className={`order-status ${order.status}`}>{statusText}</span></div><button className="icon-button order-edit" onClick={() => startEditOrder(order)} aria-label={t.editBill} title={t.editBill}><Pencil size={15} /></button></div>
+                      <h4 dir="auto">{order.garment_type || t.billGarment}{order.description ? ` · ${order.description}` : ''}</h4>
+                      <div className="order-money-grid"><span>{t.totalBill}<b>{formatMoney(Number(order.total_amount))}</b></span><span>{t.paidSoFar}<b>{formatMoney(paid)}</b></span><span>{t.due}<b className={due > 0 ? 'due-amount' : 'paid-amount'}>{formatMoney(due)}</b></span></div>
+                      {order.due_date && <p className="order-delivery">{t.dueDate}: {formatDate(`${order.due_date}T12:00:00`, language)}</p>}
+                      <p className="order-measure-count">{t.attachedMeasurements} {Object.values(order.measurements ?? {}).filter(Boolean).length}</p>
+                      {extraPayments.length > 0 && <div className="order-payment-list">{extraPayments.map((payment) => <span key={payment.id}>{formatMoney(Number(payment.amount))} · {payment.method === 'upi' ? 'UPI' : payment.method === 'cash' ? t.cash : t.otherMethod} · {formatDate(`${payment.payment_date || payment.created_at.slice(0, 10)}T12:00:00`, language)}</span>)}</div>}
+                      <div className="order-actions">{due > 0 && <button className="secondary-button payment-add" onClick={() => openPayment(order)}><Plus size={14} />{t.remainingPayment}</button>}<button className="text-button" onClick={() => startEditOrder(order)}>{t.editBill}</button></div>
+                    </article>;
+                  })}</div>}
+                </div>
                 <div className="detail-section">
-                  <div className="section-heading"><div><h3>{t.history}</h3>{totalPaid > 0 && <p className="history-total">{t.totalPaid}: {new Intl.NumberFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(totalPaid)}</p>}</div><button className="secondary-button payment-add" onClick={() => { setPaymentError(''); setPaymentOpen(true); }}><Plus size={15} />{t.payment}</button></div>
+                  <div className="section-heading"><div><h3>{t.history}</h3>{totalPaid > 0 && <p className="history-total">{t.totalPaid}: {formatMoney(totalPaid)}</p>}</div><button className="secondary-button payment-add" onClick={() => openPayment()}><Plus size={15} />{t.payment}</button></div>
                   {historyError ? <p className="inline-error history-error"><AlertCircle size={15} />{historyError}</p> : events.length === 0 ? <p className="muted-copy">{t.noHistory}</p> : <ol className="history-list">{events.map((item) => {
                     const isPayment = item.event_type === 'payment';
-                    const title = isPayment ? t.paymentEvent : item.event_type === 'measurement_created' ? t.measurementAdded : item.event_type === 'measurement_updated' ? t.measurementUpdated : t.designSavedEvent;
+                    const isOrder = item.event_type === 'order_created' || item.event_type === 'order_updated';
+                    const title = isPayment ? t.paymentEvent : item.event_type === 'measurement_created' ? t.measurementAdded : item.event_type === 'measurement_updated' ? t.measurementUpdated : item.event_type === 'design_saved' ? t.designSavedEvent : item.event_type === 'order_updated' ? t.editBill : t.addBill;
                     const method = typeof item.details?.method === 'string' ? item.details.method : '';
-                    return <li className="history-item" key={item.id}><span className={`history-dot ${isPayment ? 'paid' : ''}`} /><div className="history-content"><div className="history-title"><strong>{title}</strong>{isPayment && <b>{new Intl.NumberFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(item.amount || 0))}</b>}</div><time>{formatDate(item.created_at, language)}{method && ` · ${method === 'cash' ? t.cash : method === 'upi' ? 'UPI' : t.otherMethod}`}</time>{item.notes && <p dir="auto">{item.notes}</p>}</div></li>;
+                    const orderNumber = typeof item.details?.order_number === 'string' ? item.details.order_number : '';
+                    const stage = typeof item.details?.payment_stage === 'string' ? item.details.payment_stage : '';
+                    return <li className="history-item" key={item.id}><span className={`history-dot ${isPayment ? 'paid' : ''}`} /><div className="history-content"><div className="history-title"><strong>{title}{isOrder && orderNumber ? ` · ${orderNumber}` : ''}</strong>{(isPayment || isOrder) && <b>{formatMoney(Number(isPayment ? item.amount || 0 : item.details?.total_amount ?? item.amount ?? 0))}</b>}</div><time>{formatDate(item.created_at, language)}{method && ` · ${method === 'cash' ? t.cash : method === 'upi' ? 'UPI' : t.otherMethod}`}{stage && ` · ${stage === 'advance' ? t.advanceStage : stage === 'final' ? t.finalPaymentStage : t.partPaymentStage}`}{isOrder && typeof item.details?.garment_type === 'string' && item.details.garment_type ? ` · ${item.details.garment_type}` : ''}</time>{item.notes && <p dir="auto">{item.notes}</p>}</div></li>;
                   })}</ol>}
                 </div>
                 <div className="detail-section design-section" ref={designSectionRef}>
@@ -670,9 +812,35 @@ export default function App() {
               <label className="field"><span>{t.amount} (₹) *</span><input type="number" min="0.01" step="0.01" inputMode="decimal" required autoFocus value={paymentDraft.amount} onChange={(event) => setPaymentDraft((current) => ({ ...current, amount: event.target.value }))} /></label>
               <label className="field"><span>{t.paymentDate}</span><input type="date" value={paymentDraft.date} onChange={(event) => setPaymentDraft((current) => ({ ...current, date: event.target.value }))} /></label>
               <label className="field"><span>{t.paymentMethod}</span><select value={paymentDraft.method} onChange={(event) => setPaymentDraft((current) => ({ ...current, method: event.target.value }))}><option value="cash">{t.cash}</option><option value="upi">UPI</option><option value="other">{t.otherMethod}</option></select></label>
+              <label className="field full-field"><span>{t.paymentForBill}</span><select value={paymentDraft.order_id} onChange={(event) => { const order = orders.find((item) => item.id === event.target.value); setPaymentDraft((current) => ({ ...current, order_id: event.target.value, amount: order ? orderBalance(order).toFixed(2) : current.amount, stage: order ? 'final' : 'advance' })); }}><option value="">{t.noOrderLink}</option>{orders.filter((order) => orderBalance(order) > 0).map((order) => <option value={order.id} key={order.id}>{order.order_number} · {order.garment_type} · {t.due}: {formatMoney(orderBalance(order))}</option>)}</select></label>
+              <label className="field"><span>{t.orderPayment}</span><select value={paymentDraft.stage} onChange={(event) => setPaymentDraft((current) => ({ ...current, stage: event.target.value }))}><option value="advance">{t.advanceStage}</option><option value="part">{t.partPaymentStage}</option><option value="final">{t.finalPaymentStage}</option></select></label>
               <label className="field full-field"><span>{t.paymentNote}</span><textarea rows={2} value={paymentDraft.notes} onChange={(event) => setPaymentDraft((current) => ({ ...current, notes: event.target.value }))} /></label>
             </div>{paymentError && <p className="inline-error form-error"><AlertCircle size={16} />{paymentError}</p>}</div>
             <footer className="modal-footer"><button type="button" className="plain-button" onClick={() => setPaymentOpen(false)} disabled={paymentSaving}>{t.cancel}</button><button type="submit" className="primary-button" disabled={paymentSaving}>{paymentSaving ? <LoaderCircle className="spin" size={17} /> : <Save size={17} />}{paymentSaving ? t.saving : t.savePayment}</button></footer>
+          </form>
+        </section>
+      </div>}
+
+      {orderOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !orderSaving) setOrderOpen(false); }}>
+        <section className="order-modal" role="dialog" aria-modal="true" aria-labelledby="order-title">
+          <header className="modal-head"><div><p className="eyebrow">SUNNY TAILOR</p><h2 id="order-title">{editingOrderId ? t.editBill : t.billTitle}</h2></div><button className="icon-button" onClick={() => setOrderOpen(false)} disabled={orderSaving} aria-label={t.cancel}><X size={19} /></button></header>
+          <form onSubmit={(event) => void saveOrder(event)}>
+            <div className="modal-body">
+              <section className="form-section"><div className="form-grid">
+                <div className="field full-field"><span>{t.linkedCustomer} *</span>{orderCustomerId ? <div className="selected-order-customer"><UserRound size={16} /><strong>{customers.find((customer) => customer.id === orderCustomerId)?.name}</strong><small>{customers.find((customer) => customer.id === orderCustomerId)?.phone}</small>{!editingOrderId && <button type="button" className="text-button" onClick={() => { setOrderCustomerId(''); setOrderCustomerQuery(''); }}>{language === 'mr' ? 'बदला' : 'Change'}</button>}</div> : <><input type="search" value={orderCustomerQuery} onChange={(event) => setOrderCustomerQuery(event.target.value)} placeholder={t.selectCustomer} autoFocus /><div className="order-customer-results">{orderCustomerMatches.slice(0, 8).map((customer) => <button type="button" key={customer.id} onClick={() => { setOrderCustomerId(customer.id); setOrderCustomerQuery(`${customer.name}${customer.phone ? ` · ${customer.phone}` : ''}`); setOrderDraft((current) => ({ ...current, garment_type: current.garment_type || customer.garment_type })); }}><strong>{customer.name}</strong><span>{customer.phone || customer.garment_type}</span></button>)}{orderCustomerMatches.length === 0 && <small>{t.noCustomerMatch}</small>}</div></>}</div>
+                <label className="field"><span>{t.garment} *</span><select required value={orderDraft.garment_type} onChange={(event) => setOrderDraft((current) => ({ ...current, garment_type: event.target.value }))}><option value="">{t.chooseGarment}</option><option value={language === 'mr' ? 'ब्लाउज' : 'Blouse'}>{t.blouseOption}</option><option value={language === 'mr' ? 'ड्रेस' : 'Dress'}>{t.dressOption}</option><option value={language === 'mr' ? '९ वारी' : '9 vaari'}>{t.nineVaariOption}</option><option value={language === 'mr' ? 'इतर' : 'Other'}>{t.otherOption}</option></select></label>
+                <label className="field"><span>{t.status}</span><select value={orderDraft.status} onChange={(event) => setOrderDraft((current) => ({ ...current, status: event.target.value }))}><option value="new">{t.orderNew}</option><option value="in_progress">{t.orderInProgress}</option><option value="ready">{t.orderReady}</option><option value="delivered">{t.orderDelivered}</option><option value="cancelled">{t.orderCancelled}</option></select></label>
+                <label className="field"><span>{t.billDescription}</span><input value={orderDraft.description} onChange={(event) => setOrderDraft((current) => ({ ...current, description: event.target.value }))} placeholder={language === 'mr' ? 'उदा. लग्नाचा ब्लाउज' : 'e.g. wedding blouse'} /></label>
+                <label className="field"><span>{t.billAmount} *</span><input type="number" min="0.01" step="0.01" required value={orderDraft.total_amount} onChange={(event) => setOrderDraft((current) => ({ ...current, total_amount: event.target.value }))} /></label>
+                <label className="field"><span>{t.advanceAmount}</span><input type="number" min="0" step="0.01" disabled={Boolean(editingOrderId)} value={orderDraft.advance_amount} onChange={(event) => setOrderDraft((current) => ({ ...current, advance_amount: event.target.value }))} /></label>
+                <label className="field"><span>{t.advanceMethod}</span><select disabled={Boolean(editingOrderId)} value={orderDraft.advance_method} onChange={(event) => setOrderDraft((current) => ({ ...current, advance_method: event.target.value }))}><option value="cash">{t.cash}</option><option value="upi">UPI</option><option value="other">{t.otherMethod}</option></select></label>
+                <label className="field"><span>{t.dueDate}</span><input type="date" value={orderDraft.due_date} onChange={(event) => setOrderDraft((current) => ({ ...current, due_date: event.target.value }))} /></label>
+                <label className="field full-field"><span>{t.orderNotes}</span><textarea rows={2} value={orderDraft.notes} onChange={(event) => setOrderDraft((current) => ({ ...current, notes: event.target.value }))} /></label>
+              </div></section>
+              {orderCustomerId && <p className="order-snapshot-note"><Check size={15} />{t.attachedMeasurements} {Object.values(customers.find((customer) => customer.id === orderCustomerId)?.measurements ?? {}).filter(Boolean).length}</p>}
+              {orderError && <p className="inline-error form-error"><AlertCircle size={16} />{orderError}</p>}
+            </div>
+            <footer className="modal-footer"><button type="button" className="plain-button" onClick={() => setOrderOpen(false)} disabled={orderSaving}>{t.cancel}</button><button type="submit" className="primary-button" disabled={orderSaving || !orderCustomerId}>{orderSaving ? <LoaderCircle className="spin" size={17} /> : <Save size={17} />}{orderSaving ? t.saving : t.createBill}</button></footer>
           </form>
         </section>
       </div>}
@@ -717,6 +885,18 @@ export default function App() {
                   return <div className="measurement-category-group" key={group}><h4>{title}</h4><div className="form-grid measurement-input-grid">{fields.map((field) => <label className="field" key={field}><span>{labels[language][field]}{scanResult?.measurements?.[field]?.confidence !== undefined && <em>{formatConfidence(scanResult.measurements[field]?.confidence)}</em>}</span><input value={draft.measurements[field] ?? ''} onChange={(event) => updateMeasurement(field, event.target.value)} placeholder="—" dir="auto" /></label>)}</div></div>;
                 })}
                 <label className="field measure-note-field"><span>{t.measureNotes}</span><textarea rows={2} value={draft.measurement_notes} onChange={(event) => setDraft({ ...draft, measurement_notes: event.target.value })} placeholder={t.measureNotesPlaceholder} dir="auto" /></label>
+              </section>
+              <section className="form-section form-design-section">
+                <div className="form-section-title"><span className="number-badge">3</span><div><h3>{t.sketchDuringEntry}</h3><p>{t.createOrEditSketchHint}</p></div></div>
+                <div className="drawing-toolbar">
+                  <button type="button" className={`draw-tool ${designMode === 'pen' ? 'active' : ''}`} onClick={() => setDesignMode('pen')} title={t.pen}><Pencil size={15} />{t.pen}</button>
+                  <button type="button" className={`draw-tool ${designMode === 'eraser' ? 'active' : ''}`} onClick={() => setDesignMode('eraser')} title={t.eraser}><Eraser size={15} />{t.eraser}</button>
+                  <button type="button" className="draw-icon-tool" onClick={undoDesign} disabled={formDrawingHistoryRef.current.length === 0} title={t.undo} aria-label={t.undo}><RotateCcw size={15} /></button>
+                  <button type="button" className="draw-icon-tool" onClick={clearDesign} title={t.clearDrawing}>{language === 'mr' ? 'पुसा' : 'Clear'}</button>
+                  <label className="draw-color" title={t.drawingColor}><span>{t.drawingColor}</span><input type="color" value={designColor} onChange={(event) => setDesignColor(event.target.value)} aria-label={t.drawingColor} /></label>
+                </div>
+                <canvas ref={formDesignCanvasRef} className="design-canvas" width={1000} height={500} onPointerDown={startDrawing} onPointerMove={continueDrawing} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} aria-label={t.designPad} />
+                <div className="design-save-row"><span>{draftDesignDirty ? (language === 'mr' ? 'ग्राहक जतन केल्यावर डिझाइनही जतन होईल' : 'Sketch will save with this customer') : draft.design_image ? t.sketchEdited : ''}</span><span className="form-design-status"><Save size={14} /> {draftDesignDirty ? t.sketchEdited : t.save}</span></div>
               </section>
               {formError && <p className="inline-error form-error"><AlertCircle size={16} />{formError}</p>}
             </div>

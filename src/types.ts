@@ -53,16 +53,45 @@ export type Customer = {
   updated_at: string;
 };
 
-export type CustomerDraft = Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'design_image'>;
+export type CustomerDraft = Omit<Customer, 'id' | 'created_at' | 'updated_at'>;
 
 export type CustomerEvent = {
   id: string;
   customer_id: string;
-  event_type: 'measurement_created' | 'measurement_updated' | 'payment' | 'design_saved';
+  event_type: 'measurement_created' | 'measurement_updated' | 'payment' | 'design_saved' | 'order_created' | 'order_updated';
   title: string;
   amount: number | null;
   notes: string;
   details: Record<string, unknown>;
+  created_at: string;
+};
+
+export type CustomerOrder = {
+  id: string;
+  customer_id: string;
+  order_number: string;
+  garment_type: string;
+  description: string;
+  total_amount: number;
+  advance_amount: number;
+  advance_method: string;
+  due_date: string;
+  status: 'new' | 'in_progress' | 'ready' | 'delivered' | 'cancelled';
+  notes: string;
+  measurements: Measurements;
+  measurement_date: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CustomerOrderPayment = {
+  id: string;
+  order_id: string;
+  amount: number;
+  method: string;
+  stage: string;
+  notes: string;
+  payment_date: string;
   created_at: string;
 };
 
