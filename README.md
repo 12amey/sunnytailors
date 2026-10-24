@@ -16,6 +16,8 @@ The publishable key is intentionally used in the browser. The SQL file grants th
 
 Set `GEMINI_API_KEY` as a private Netlify environment variable. Do not prefix it with `NEXT_PUBLIC_`, add it to a client file, or commit it. Optionally set `GEMINI_MODEL`; the default is `gemini-3.8-flash`.
 
+If a scan fails, the app now displays Google's HTTP category and message. A `401` means the key is invalid, a `403` means API access/project restrictions, a `404` means the configured model is unavailable, and a `429` means the Gemini quota or rate limit was reached. The default model `gemini-3.8-flash` is currently supported for images and structured output; check the private Netlify `GEMINI_MODEL` override if the error names another model.
+
 **Scan Marathi note** sends one customer's photo through a Netlify Function to Google Gemini and returns an editable draft. **Bulk import** accepts multiple notebook photos; each photo can contain multiple customer sections, and readable entries are saved directly without a confirmation step. The same page will not be imported twice. The app does not store uploaded images. Handwriting recognition can make mistakes, so check saved records after an import. Since both scan functions are public, set API quotas in Google AI Studio and monitor usage.
 
 ## Local development

@@ -32,6 +32,18 @@ function jsonResponse(statusCode, payload) {
   });
 }
 
+function explainGeminiFailure(status, details) {
+  const message = String(details?.error?.message || '').replace(/\s+/g, ' ').slice(0, 260);
+  const suffix = message ? ` Google: ${message}` : '';
+  if (status === 401) return 'Google rejected GEMINI_API_KEY. Create a valid Gemini API key and set it in Netlify environment variables as GEMINI_API_KEY, then redeploy.';
+  if (status === 403) return `Google denied Gemini API access. Check that the key is enabled for Gemini and the Google project is not restricted.${suffix}`;
+  if (status === 404) return `Gemini model not found. In Netlify set GEMINI_MODEL to gemini-3.8-flash, or remove the override.${suffix}`;
+  if (status === 429) return `Google Gemini quota or rate limit reached. Check the project's quota in Google AI Studio and retry after it resets.${suffix}`;
+  if (status === 400) return `Google rejected the scan request. Check the image and Gemini request configuration.${suffix}`;
+  if (status >= 500) return `Google Gemini is temporarily unavailable (HTTP ${status}). Retry shortly.${suffix}`;
+  return `Gemini request failed (HTTP ${status}). Check the key, model, and API access.${suffix}`;
+}
+
 export default async (request) => {
   if (request.method !== 'POST') return jsonResponse(405, { error: 'Use POST to scan an image.' });
   if (!process.env.GEMINI_API_KEY) return jsonResponse(503, { error: 'Add GEMINI_API_KEY to Netlify environment variables to enable image scanning.' });
@@ -79,7 +91,7 @@ Return one JSON object matching the supplied schema. Copy the customer name and 
   if (!upstream.ok) {
     const details = await upstream.json().catch(() => ({}));
     console.error('Gemini image scan failed:', upstream.status, details?.error?.status || 'upstream error');
-    return jsonResponse(502, { error: 'Gemini could not read this image. Check the API key, model, and quota.' });
+    return jsonResponse(upstream.status === 429 ? 429 : 502, { error: explainGeminiFailure(upstream.status, details) });
   }
 
   const result = await upstream.json();
