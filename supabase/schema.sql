@@ -45,3 +45,40 @@ create policy "Public can delete customer records"
   on public.customers for delete to anon using (true);
 
 grant select, insert, update, delete on public.customers to anon;
+
+-- Append-only per-customer activity: measurement snapshots, design saves and optional payments.
+create table if not exists public.customer_events (
+  id uuid primary key default gen_random_uuid(),
+  customer_id uuid not null references public.customers(id) on delete cascade,
+  event_type text not null check (event_type in ('measurement_created', 'measurement_updated', 'payment', 'design_saved')),
+  title text not null default '',
+  amount numeric(12, 2),
+  notes text not null default '',
+  details jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  constraint customer_events_payment_amount_check check (event_type <> 'payment' or amount > 0)
+);
+
+create index if not exists customer_events_customer_date_idx on public.customer_events (customer_id, created_at desc);
+
+alter table public.customer_events enable row level security;
+
+drop policy if exists "Public can read customer activity" on public.customer_events;
+create policy "Public can read customer activity"
+  on public.customer_events for select to anon using (true);
+
+drop policy if exists "Public can add customer activity" on public.customer_events;
+create policy "Public can add customer activity"
+  on public.customer_events for insert to anon with check (true);
+
+grant select, insert on public.customer_events to anon;
+
+-- Seed an initial history snapshot for customer records that predate this activity log.
+insert into public.customer_events (customer_id, event_type, title, amount, notes, details, created_at)
+select c.id, 'measurement_created', 'Customer record imported', null, c.measurement_notes,
+  jsonb_build_object('garment_type', c.garment_type, 'measurements', c.measurements, 'measurement_date', c.measurement_date), c.created_at
+from public.customers c
+where not exists (
+  select 1 from public.customer_events e
+  where e.customer_id = c.id and e.event_type in ('measurement_created', 'measurement_updated')
+);

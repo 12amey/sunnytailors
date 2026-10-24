@@ -5,7 +5,7 @@ import {
   Sparkles, Trash2, UserRound, Users, X,
 } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
-import { measurementFields, type Customer, type CustomerDraft, type Language, type MeasurementField, type ScanResult } from './types';
+import { measurementFields, type Customer, type CustomerDraft, type CustomerEvent, type Language, type MeasurementField, type ScanResult } from './types';
 
 const emptyDraft = (): CustomerDraft => ({
   name: '', phone: '', notes: '', garment_type: '', measurements: {}, measurement_notes: '', measurement_date: '',
@@ -19,7 +19,7 @@ const copy = {
     noResults: 'No matching customers', noResultsHelp: 'Try another name, phone number, or measurement.',
     newCustomer: 'New customer', editCustomer: 'Edit customer', basic: 'Customer details', measurements: 'Measurements',
     name: 'Name', phone: 'Phone number', garment: 'Garment type', notes: 'Customer notes',
-    date: 'Measurement date',
+    date: 'Measurement date', topMeasurements: 'Top measurements', pantsMeasurements: 'Pants measurements',
     chooseGarment: 'Choose garment type', blouseOption: 'Blouse', dressOption: 'Dress', nineVaariOption: '9 vaari', otherOption: 'Other', otherGarmentPlaceholder: 'Enter garment type',
     measureNotes: 'Measurement notes', namePlaceholder: 'Customer name', phonePlaceholder: 'Phone number',
     garmentPlaceholder: 'e.g. Blouse, dress, trousers', notesPlaceholder: 'Style preferences, fitting notes…',
@@ -46,6 +46,8 @@ const copy = {
     batch: 'Bulk import', batchTitle: 'Import multiple customers', batchHint: 'Choose one or more notebook photos. AI finds each customer entry on every page and saves the results automatically.',
     batchChoose: 'Choose photos', batchRun: 'Scan and save all', batchRunning: 'Scanning and saving…', batchPrivacy: 'Photos are sent to Google Gemini for reading and are not stored. Extracted customer details are saved directly to this public customer book.',
     batchDone: 'Import finished', batchProgress: 'Photos processed', batchError: 'Could not import this photo', batchEmpty: 'No customer entries with measurements were found in this photo.', batchNameFallback: 'Name not readable', batchSize: 'Each photo must be smaller than 4 MB.',
+    history: 'Customer history', noHistory: 'No activity recorded yet.', payment: 'Add payment', paymentTitle: 'Record a payment', amount: 'Amount', paymentDate: 'Payment date', paymentMethod: 'Method', paymentNote: 'Note (optional)', cash: 'Cash', upi: 'UPI', otherMethod: 'Other', savePayment: 'Save payment', paymentSaved: 'Payment recorded.', paymentError: 'Could not record payment. Run the latest Supabase schema first.', totalPaid: 'Total paid', measurementAdded: 'Measurements added', measurementUpdated: 'Measurements updated', designSavedEvent: 'Design sketch saved', paymentEvent: 'Payment received', amountRequired: 'Enter a valid amount greater than zero.',
+    sariGroup: '9 vaari drape', topGroup: 'Top', pantsGroup: 'Pants',
   },
   mr: {
     subtitle: 'ग्राहक वही', search: 'नाव, फोन किंवा माप शोधा…', add: 'ग्राहक जोडा',
@@ -54,7 +56,7 @@ const copy = {
     noResults: 'जुळणारे ग्राहक सापडले नाहीत', noResultsHelp: 'दुसरे नाव, फोन नंबर किंवा माप शोधा.',
     newCustomer: 'नवीन ग्राहक', editCustomer: 'ग्राहकाची नोंद बदला', basic: 'ग्राहकाची माहिती', measurements: 'मापे',
     name: 'नाव', phone: 'फोन नंबर', garment: 'कपड्याचा प्रकार', notes: 'ग्राहकाबद्दल नोंद',
-    date: 'मापाची तारीख',
+    date: 'मापाची तारीख', topMeasurements: 'टॉपची मापे', pantsMeasurements: 'पँटची मापे',
     chooseGarment: 'कपड्याचा प्रकार निवडा', blouseOption: 'ब्लाउज', dressOption: 'ड्रेस', nineVaariOption: '९ वारी', otherOption: 'इतर', otherGarmentPlaceholder: 'कपड्याचा प्रकार लिहा',
     measureNotes: 'मापांबद्दल नोंद', namePlaceholder: 'ग्राहकाचे नाव', phonePlaceholder: 'फोन नंबर',
     garmentPlaceholder: 'उदा. ब्लाउज, ड्रेस, पँट', notesPlaceholder: 'आवड, फिटिंगविषयी नोंद…',
@@ -81,18 +83,20 @@ const copy = {
     batch: 'अनेक नोंदी एकत्र', batchTitle: 'अनेक ग्राहकांची मापे भरा', batchHint: 'वहीची एक किंवा अधिक पाने निवडा. AI प्रत्येक पानावरील ग्राहकांच्या नोंदी वाचून आपोआप जतन करेल.',
     batchChoose: 'फोटो निवडा', batchRun: 'सर्व वाचून जतन करा', batchRunning: 'वाचून जतन होत आहे…', batchPrivacy: 'फोटो वाचण्यासाठी Google Gemini कडे पाठवले जातात आणि जतन होत नाहीत. वाचलेली ग्राहक माहिती या सार्वजनिक वहीत थेट जतन होते.',
     batchDone: 'नोंदी जतन झाल्या', batchProgress: 'पूर्ण केलेले फोटो', batchError: 'हा फोटो जतन करता आला नाही', batchEmpty: 'या फोटोमध्ये मापांसह ग्राहक नोंदी सापडल्या नाहीत.', batchNameFallback: 'नाव वाचता आले नाही', batchSize: 'प्रत्येक फोटो ४ MB पेक्षा लहान हवा.',
+    history: 'ग्राहकाचा इतिहास', noHistory: 'अजून कोणतीही नोंद नाही.', payment: 'पैसे नोंदवा', paymentTitle: 'पेमेंट नोंदवा', amount: 'रक्कम', paymentDate: 'पेमेंटची तारीख', paymentMethod: 'पद्धत', paymentNote: 'नोंद (ऐच्छिक)', cash: 'रोख', upi: 'UPI', otherMethod: 'इतर', savePayment: 'पेमेंट जतन करा', paymentSaved: 'पेमेंट नोंदवले.', paymentError: 'पेमेंट नोंदवता आले नाही. आधी नवीनतम Supabase schema चालवा.', totalPaid: 'एकूण मिळाले', measurementAdded: 'मापे जोडली', measurementUpdated: 'मापे बदलली', designSavedEvent: 'डिझाइन जतन केले', paymentEvent: 'पेमेंट मिळाले', amountRequired: 'शून्यापेक्षा जास्त योग्य रक्कम लिहा.',
+    sariGroup: '९ वारी नेसणी', topGroup: 'टॉप', pantsGroup: 'पँट',
   },
 } satisfies Record<Language, Record<string, string>>;
 
 const labels: Record<Language, Record<MeasurementField, string>> = {
-  en: { height: 'Height', blouse_back_length: 'Blouse back length', chest: 'Chest / bust', arm_length: 'Arm length', arm_measurements: 'Arm measurements', pants_length: 'Pants length', top_length: 'Top length', waist: 'Waist', hip: 'Hip', sleeve_length: 'Sleeve length', sleeve_width: 'Sleeve width', front_neck: 'Front neck', back_neck: 'Back neck' },
-  mr: { height: 'उंची', blouse_back_length: 'ब्लाउजची मागची लांबी', chest: 'छातीचा घेर', arm_length: 'बाहीची लांबी', arm_measurements: 'बाहीची जोड मापे', pants_length: 'पँटची लांबी', top_length: 'टॉपची लांबी', waist: 'कंबर', hip: 'नितंब', sleeve_length: 'बाहीची लांबी', sleeve_width: 'बाहीची रुंदी', front_neck: 'गळा पुढे', back_neck: 'गळा मागे' },
+  en: { height: 'Height', blouse_back_length: 'Blouse back length', chest: 'Chest / bust', arm_length: 'Arm length', arm_measurements: 'Arm measurements', pants_length: 'Pants length', top_length: 'Top length', waist: 'Waist', hip: 'Hip', sleeve_length: 'Sleeve length', sleeve_width: 'Sleeve width', front_neck: 'Front neck', back_neck: 'Back neck', top_chest: 'Top chest / bust', top_waist: 'Top waist', top_hip: 'Top hip', top_sleeve_length: 'Top sleeve length', top_sleeve_width: 'Top sleeve width', top_arm_length: 'Top arm length', top_front_neck: 'Top front neck', top_back_neck: 'Top back neck', pants_waist: 'Pants waist', pants_hip: 'Pants hip', pants_thigh: 'Pants thigh', pants_crotch: 'Pants crotch / rise', pants_bottom: 'Pants bottom width', nine_vaari_front_length: 'Front fall length', nine_vaari_back_length: 'Back fall length', nine_vaari_crotch_length: 'Crotch / dhoti length', nine_vaari_waist: 'Waist', nine_vaari_hip: 'Hip', nine_vaari_pleats: 'Pleat count / width', nine_vaari_pallu: 'Pallu length' },
+  mr: { height: 'उंची', blouse_back_length: 'ब्लाउजची मागची लांबी', chest: 'छातीचा घेर', arm_length: 'बाहीची लांबी', arm_measurements: 'बाहीची जोड मापे', pants_length: 'पँटची लांबी', top_length: 'टॉपची लांबी', waist: 'कंबर', hip: 'नितंब', sleeve_length: 'बाहीची लांबी', sleeve_width: 'बाहीची रुंदी', front_neck: 'गळा पुढे', back_neck: 'गळा मागे', top_chest: 'टॉपचा छातीचा घेर', top_waist: 'टॉपची कंबर', top_hip: 'टॉपचा नितंब घेर', top_sleeve_length: 'टॉपच्या बाहीची लांबी', top_sleeve_width: 'टॉपच्या बाहीची रुंदी', top_arm_length: 'टॉपच्या बाहीची लांबी', top_front_neck: 'टॉपचा पुढचा गळा', top_back_neck: 'टॉपचा मागचा गळा', pants_waist: 'पँटची कंबर', pants_hip: 'पँटचा नितंब घेर', pants_thigh: 'मांडीचा घेर', pants_crotch: 'पँटची बैठक / उंची', pants_bottom: 'पँटच्या बॉटमची रुंदी', nine_vaari_front_length: 'पुढची लांबी', nine_vaari_back_length: 'मागची लांबी', nine_vaari_crotch_length: 'धोतर घडीची लांबी', nine_vaari_waist: 'कंबर', nine_vaari_hip: 'नितंब', nine_vaari_pleats: 'निऱ्यांची संख्या / रुंदी', nine_vaari_pallu: 'पदराची लांबी' },
 };
 
 const categoryFields: Record<string, MeasurementField[]> = {
   blouse: ['height', 'blouse_back_length', 'chest', 'waist', 'arm_length', 'arm_measurements', 'front_neck', 'back_neck'],
-  dress: ['height', 'top_length', 'chest', 'waist', 'hip', 'sleeve_length', 'sleeve_width', 'arm_length', 'front_neck', 'back_neck'],
-  'nine-vaari': ['height', 'blouse_back_length', 'chest', 'waist', 'hip', 'pants_length', 'arm_length', 'arm_measurements', 'front_neck', 'back_neck'],
+  dress: ['top_length', 'top_chest', 'top_waist', 'top_hip', 'top_sleeve_length', 'top_sleeve_width', 'top_arm_length', 'top_front_neck', 'top_back_neck', 'pants_length', 'pants_waist', 'pants_hip', 'pants_thigh', 'pants_crotch', 'pants_bottom'],
+  'nine-vaari': ['height', 'nine_vaari_front_length', 'nine_vaari_back_length', 'nine_vaari_crotch_length', 'nine_vaari_waist', 'nine_vaari_hip', 'nine_vaari_pleats', 'nine_vaari_pallu', 'blouse_back_length', 'chest', 'arm_length', 'arm_measurements', 'front_neck', 'back_neck'],
   other: [...measurementFields],
 };
 
@@ -101,11 +105,14 @@ const measurementGroups: Record<string, MeasurementField[]> = {
   length: ['blouse_back_length', 'top_length', 'pants_length'],
   arms: ['arm_length', 'arm_measurements', 'sleeve_length', 'sleeve_width'],
   neck: ['front_neck', 'back_neck'],
+  top: ['top_length', 'top_chest', 'top_waist', 'top_hip', 'top_sleeve_length', 'top_sleeve_width', 'top_arm_length', 'top_front_neck', 'top_back_neck'],
+  pants: ['pants_length', 'pants_waist', 'pants_hip', 'pants_thigh', 'pants_crotch', 'pants_bottom'],
+  sari: ['nine_vaari_front_length', 'nine_vaari_back_length', 'nine_vaari_crotch_length', 'nine_vaari_waist', 'nine_vaari_hip', 'nine_vaari_pleats', 'nine_vaari_pallu'],
 };
 
 const groupMeasurements = (fields: MeasurementField[]) => Object.entries(measurementGroups).map(([group, keys]) => ({
   group,
-  fields: keys.filter((field) => fields.includes(field)),
+  fields: keys.filter((field) => fields.includes(field) && !((group === 'length') && (fields.includes('top_chest') || fields.includes('pants_waist')) && (field === 'top_length' || field === 'pants_length'))),
 })).filter(({ fields: keys }) => keys.length > 0);
 
 const normalizeSearch = (value: string) => value
@@ -211,6 +218,12 @@ export default function App() {
   const [designMessage, setDesignMessage] = useState('');
   const [designMode, setDesignMode] = useState<'pen' | 'eraser'>('pen');
   const [designColor, setDesignColor] = useState('#27253a');
+  const [events, setEvents] = useState<CustomerEvent[]>([]);
+  const [historyError, setHistoryError] = useState('');
+  const [paymentOpen, setPaymentOpen] = useState(false);
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const [paymentError, setPaymentError] = useState('');
+  const [paymentDraft, setPaymentDraft] = useState({ amount: '', date: new Date().toISOString().slice(0, 10), method: 'cash', notes: '' });
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const designCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -247,10 +260,12 @@ export default function App() {
     });
   }, [customers, query]);
   const activeCustomer = customers.find((customer) => customer.id === selected) ?? null;
-  const visibleMeasurements = categoryFields[garmentChoice] ?? [...measurementFields];
+  const visibleMeasurements = categoryFields[garmentChoice] ?? categoryFields.blouse;
   const groupedMeasurements = groupMeasurements(visibleMeasurements);
   const selectedCustomerFields = activeCustomer ? categoryFields[garmentCategory(activeCustomer.garment_type)] ?? [...measurementFields] : [...measurementFields];
   const customerGroupedMeasurements = groupMeasurements(selectedCustomerFields);
+  const totalPaid = events.filter((item) => item.event_type === 'payment').reduce((total, item) => total + Number(item.amount || 0), 0);
+  const groupTitle = (group: string) => group === 'body' ? t.bodyGroup : group === 'length' ? t.lengthGroup : group === 'arms' ? t.armsGroup : group === 'neck' ? t.neckGroup : group === 'top' ? t.topGroup : group === 'pants' ? t.pantsGroup : t.sariGroup;
 
   useEffect(() => {
     if (!selected || !supabase) { setDesignImage(''); return; }
@@ -264,6 +279,18 @@ export default function App() {
     });
     return () => { cancelled = true; };
   }, [selected]);
+
+  const loadCustomerEvents = useCallback(async (customerId: string) => {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('customer_events').select('id,customer_id,event_type,title,amount,notes,details,created_at').eq('customer_id', customerId).order('created_at', { ascending: false });
+    if (error) { setHistoryError(t.paymentError); setEvents([]); }
+    else { setHistoryError(''); setEvents((data ?? []) as CustomerEvent[]); }
+  }, [t.paymentError]);
+
+  useEffect(() => {
+    setEvents([]); setHistoryError('');
+    if (selected) void loadCustomerEvents(selected);
+  }, [selected, loadCustomerEvents]);
 
   useEffect(() => {
     const canvas = designCanvasRef.current;
@@ -348,7 +375,11 @@ export default function App() {
     const image = clearedDrawingRef.current ? '' : canvas.toDataURL('image/webp', 0.82);
     const { error } = await supabase.from('customers').update({ design_image: image, updated_at: new Date().toISOString() }).eq('id', activeCustomer.id);
     if (error) setDesignError(error.message || t.drawingError);
-    else { setDesignImage(image); setDesignDirty(false); setDesignMessage(t.drawingSaved); drawingHistoryRef.current = []; clearedDrawingRef.current = false; }
+    else {
+      setDesignImage(image); setDesignDirty(false); setDesignMessage(t.drawingSaved); drawingHistoryRef.current = []; clearedDrawingRef.current = false;
+      await supabase.from('customer_events').insert({ customer_id: activeCustomer.id, event_type: 'design_saved', title: t.designSavedEvent, amount: null, notes: '', details: {} });
+      await loadCustomerEvents(activeCustomer.id);
+    }
     setDesignSaving(false);
   };
 
@@ -479,8 +510,33 @@ export default function App() {
       ? await supabase.from('customers').update(payload).eq('id', editingId).select().single()
       : await supabase.from('customers').insert(payload).select().single();
     if (result.error) { setFormError(result.error.message || t.saveError); setSaving(false); return; }
+    const eventResult = await supabase.from('customer_events').insert({
+      customer_id: result.data.id,
+      event_type: editingId ? 'measurement_updated' : 'measurement_created',
+      title: editingId ? t.measurementUpdated : t.measurementAdded,
+      amount: null,
+      notes: payload.measurement_notes || '',
+      details: { garment_type: payload.garment_type, measurements: payload.measurements, measurement_date: payload.measurement_date },
+    });
+    if (eventResult.error) setHistoryError(eventResult.error.message);
     await loadCustomers();
-    setSelected(result.data.id); setSaving(false); setFormOpen(false);
+    setSelected(result.data.id); await loadCustomerEvents(result.data.id); setSaving(false); setFormOpen(false);
+  };
+
+  const savePayment = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const amount = Number(paymentDraft.amount);
+    if (!activeCustomer || !supabase || !Number.isFinite(amount) || amount <= 0) { setPaymentError(t.amountRequired); return; }
+    setPaymentSaving(true); setPaymentError('');
+    const { error } = await supabase.from('customer_events').insert({
+      customer_id: activeCustomer.id, event_type: 'payment', title: t.paymentEvent,
+      amount, notes: paymentDraft.notes.trim(), details: { method: paymentDraft.method, payment_date: paymentDraft.date },
+      created_at: paymentDraft.date ? new Date(`${paymentDraft.date}T12:00:00`).toISOString() : new Date().toISOString(),
+    });
+    if (error) { setPaymentError(error.message || t.paymentError); setPaymentSaving(false); return; }
+    await loadCustomerEvents(activeCustomer.id);
+    setPaymentDraft({ amount: '', date: new Date().toISOString().slice(0, 10), method: 'cash', notes: '' });
+    setPaymentSaving(false); setPaymentOpen(false);
   };
 
   const deleteCustomer = async () => {
@@ -555,11 +611,20 @@ export default function App() {
                 </div>
                 <div className="detail-section"><div className="section-heading"><h3>{t.measurements}</h3><span className="measurement-pill">{Object.values(activeCustomer.measurements ?? {}).filter(Boolean).length}</span></div>
                   {Object.values(activeCustomer.measurements ?? {}).some(Boolean) ? customerGroupedMeasurements.map(({ group, fields }) => {
-                    const title = group === 'body' ? t.bodyGroup : group === 'length' ? t.lengthGroup : group === 'arms' ? t.armsGroup : t.neckGroup;
+                    const title = groupTitle(group);
                     const saved = fields.filter((field) => activeCustomer.measurements?.[field]);
                     return saved.length ? <div className="measurement-category-group" key={group}><h4>{title}</h4><div className="measure-grid">{saved.map((field) => <div className="measure-cell" key={field}><span>{labels[language][field]}</span><strong dir="auto">{activeCustomer.measurements[field]}</strong></div>)}</div></div> : null;
                   }) : <p className="muted-copy">{t.emptyMeasure}</p>}
                   {activeCustomer.measurement_notes && <div className="measure-notes"><span>{t.measureNotes}</span><p dir="auto">{activeCustomer.measurement_notes}</p></div>}
+                </div>
+                <div className="detail-section">
+                  <div className="section-heading"><div><h3>{t.history}</h3>{totalPaid > 0 && <p className="history-total">{t.totalPaid}: {new Intl.NumberFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(totalPaid)}</p>}</div><button className="secondary-button payment-add" onClick={() => { setPaymentError(''); setPaymentOpen(true); }}><Plus size={15} />{t.payment}</button></div>
+                  {historyError ? <p className="inline-error history-error"><AlertCircle size={15} />{historyError}</p> : events.length === 0 ? <p className="muted-copy">{t.noHistory}</p> : <ol className="history-list">{events.map((item) => {
+                    const isPayment = item.event_type === 'payment';
+                    const title = isPayment ? t.paymentEvent : item.event_type === 'measurement_created' ? t.measurementAdded : item.event_type === 'measurement_updated' ? t.measurementUpdated : t.designSavedEvent;
+                    const method = typeof item.details?.method === 'string' ? item.details.method : '';
+                    return <li className="history-item" key={item.id}><span className={`history-dot ${isPayment ? 'paid' : ''}`} /><div className="history-content"><div className="history-title"><strong>{title}</strong>{isPayment && <b>{new Intl.NumberFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(Number(item.amount || 0))}</b>}</div><time>{formatDate(item.created_at, language)}{method && ` · ${method === 'cash' ? t.cash : method === 'upi' ? 'UPI' : t.otherMethod}`}</time>{item.notes && <p dir="auto">{item.notes}</p>}</div></li>;
+                  })}</ol>}
                 </div>
                 <div className="detail-section design-section" ref={designSectionRef}>
                   <div className="section-heading"><div><h3>{t.designPad}</h3><p className="design-hint">{t.designPadHint}</p></div><Brush size={17} /></div>
@@ -594,6 +659,21 @@ export default function App() {
             <p className="privacy-note batch-privacy">{t.batchPrivacy}</p>
           </div>
           <footer className="modal-footer"><button className="plain-button" onClick={() => setBatchOpen(false)} disabled={batchRunning}>{t.cancel}</button><button className="primary-button" onClick={() => void saveBatchPhotos()} disabled={batchRunning || batchPhotos.length === 0}>{batchRunning ? <LoaderCircle className="spin" size={17} /> : <Sparkles size={17} />}{batchRunning ? t.batchRunning : t.batchRun}</button></footer>
+        </section>
+      </div>}
+
+      {paymentOpen && activeCustomer && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !paymentSaving) setPaymentOpen(false); }}>
+        <section className="payment-modal" role="dialog" aria-modal="true" aria-labelledby="payment-title">
+          <header className="modal-head"><div><p className="eyebrow">{activeCustomer.name}</p><h2 id="payment-title">{t.paymentTitle}</h2></div><button className="icon-button" onClick={() => setPaymentOpen(false)} disabled={paymentSaving} aria-label={t.cancel}><X size={19} /></button></header>
+          <form onSubmit={(event) => void savePayment(event)}>
+            <div className="modal-body"><div className="form-grid">
+              <label className="field"><span>{t.amount} (₹) *</span><input type="number" min="0.01" step="0.01" inputMode="decimal" required autoFocus value={paymentDraft.amount} onChange={(event) => setPaymentDraft((current) => ({ ...current, amount: event.target.value }))} /></label>
+              <label className="field"><span>{t.paymentDate}</span><input type="date" value={paymentDraft.date} onChange={(event) => setPaymentDraft((current) => ({ ...current, date: event.target.value }))} /></label>
+              <label className="field"><span>{t.paymentMethod}</span><select value={paymentDraft.method} onChange={(event) => setPaymentDraft((current) => ({ ...current, method: event.target.value }))}><option value="cash">{t.cash}</option><option value="upi">UPI</option><option value="other">{t.otherMethod}</option></select></label>
+              <label className="field full-field"><span>{t.paymentNote}</span><textarea rows={2} value={paymentDraft.notes} onChange={(event) => setPaymentDraft((current) => ({ ...current, notes: event.target.value }))} /></label>
+            </div>{paymentError && <p className="inline-error form-error"><AlertCircle size={16} />{paymentError}</p>}</div>
+            <footer className="modal-footer"><button type="button" className="plain-button" onClick={() => setPaymentOpen(false)} disabled={paymentSaving}>{t.cancel}</button><button type="submit" className="primary-button" disabled={paymentSaving}>{paymentSaving ? <LoaderCircle className="spin" size={17} /> : <Save size={17} />}{paymentSaving ? t.saving : t.savePayment}</button></footer>
+          </form>
         </section>
       </div>}
 
@@ -633,7 +713,7 @@ export default function App() {
 
               <section className="form-section"><div className="form-section-title"><span className="number-badge">2</span><div><h3>{t.measurements}{garmentChoice && ` · ${garmentChoice === 'blouse' ? t.blouseOption : garmentChoice === 'dress' ? t.dressOption : garmentChoice === 'nine-vaari' ? t.nineVaariOption : t.otherOption}`}</h3><p>{t.unitHint}</p></div></div>
                 {groupedMeasurements.map(({ group, fields }) => {
-                  const title = group === 'body' ? t.bodyGroup : group === 'length' ? t.lengthGroup : group === 'arms' ? t.armsGroup : t.neckGroup;
+                  const title = groupTitle(group);
                   return <div className="measurement-category-group" key={group}><h4>{title}</h4><div className="form-grid measurement-input-grid">{fields.map((field) => <label className="field" key={field}><span>{labels[language][field]}{scanResult?.measurements?.[field]?.confidence !== undefined && <em>{formatConfidence(scanResult.measurements[field]?.confidence)}</em>}</span><input value={draft.measurements[field] ?? ''} onChange={(event) => updateMeasurement(field, event.target.value)} placeholder="—" dir="auto" /></label>)}</div></div>;
                 })}
                 <label className="field measure-note-field"><span>{t.measureNotes}</span><textarea rows={2} value={draft.measurement_notes} onChange={(event) => setDraft({ ...draft, measurement_notes: event.target.value })} placeholder={t.measureNotesPlaceholder} dir="auto" /></label>
