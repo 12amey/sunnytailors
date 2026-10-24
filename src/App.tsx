@@ -115,10 +115,15 @@ const normalizeSearch = (value: string) => value
 
 const garmentCategory = (value: string) => {
   const normalized = normalizeSearch(value.trim());
-  if (['blouse', 'ब्लाउज', 'चोळी'].includes(normalized)) return 'blouse';
-  if (['dress', 'ड्रेस', 'पोशाख'].includes(normalized)) return 'dress';
-  if (['9 vaari', '9 वारी', '9वारी', '९वारी', 'nauvari', 'navvari', 'नऊवारी'].includes(normalized)) return 'nine-vaari';
+  if (['blouse', 'ब्लाउज', 'चोळी'].some((alias) => normalized.includes(alias)) || normalized.includes('ब्लाऊ')) return 'blouse';
+  if (['dress', 'ड्रेस', 'पोशाख'].some((alias) => normalized.includes(alias))) return 'dress';
+  if (['9 vaari', '9 वारी', '9वारी', 'nauvari', 'navvari', 'नऊवारी', 'नऊ वारी'].some((alias) => normalized.includes(alias))) return 'nine-vaari';
   return value.trim() ? 'other' : '';
+};
+
+const garmentLabel = (category: string, language: Language) => {
+  const choices: Record<string, [string, string]> = { blouse: ['Blouse', 'ब्लाउज'], dress: ['Dress', 'ड्रेस'], 'nine-vaari': ['9 vaari', '९ वारी'] };
+  return choices[category]?.[language === 'mr' ? 1 : 0] ?? '';
 };
 
 const garmentAliases = (value: string) => {
@@ -384,13 +389,14 @@ export default function App() {
       if (response.status === 503) throw new Error(t.scanNeedKey);
       const result = body.result as ScanResult;
       setScanResult(result);
-      if (result.garment_type?.value) setGarmentChoice(garmentCategory(result.garment_type.value));
+      const scannedGarmentChoice = result.garment_type?.value ? garmentCategory(result.garment_type.value) : '';
+      if (scannedGarmentChoice) setGarmentChoice(scannedGarmentChoice);
       setDraft((current) => ({
         ...current,
         name: result.name?.value || current.name,
         phone: result.phone?.value || current.phone,
         notes: result.notes?.value || current.notes,
-        garment_type: result.garment_type?.value || current.garment_type,
+        garment_type: result.garment_type?.value ? garmentLabel(scannedGarmentChoice, language) || result.garment_type.value : current.garment_type,
         measurement_notes: result.measurement_notes?.value || current.measurement_notes,
         measurement_date: result.measurement_date?.value || current.measurement_date,
         measurements: Object.fromEntries(measurementFields.map((field) => [field, result.measurements?.[field]?.value || current.measurements[field] || ''])) as CustomerDraft['measurements'],
