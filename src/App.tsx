@@ -8,7 +8,7 @@ import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { measurementFields, type Customer, type CustomerDraft, type CustomerEvent, type CustomerOrder, type CustomerOrderPayment, type Language, type MeasurementField, type ScanResult } from './types';
 
 const emptyDraft = (): CustomerDraft => ({
-  name: '', phone: '', notes: '', garment_type: '', measurements: {}, measurement_notes: '', measurement_date: '', design_image: '',
+  name: '', phone: '', notes: '', garment_type: '', measurements: {}, measurement_notes: '', measurement_date: '', delivery_date: '', delivery_status: 'pending', design_image: '',
 });
 const localDateString = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
@@ -107,6 +107,19 @@ function CalendarOrderCard({ order, customerName, t, language, onComplete, onRes
     <p>{order.garment_type}{order.description ? ` · ${order.description}` : ''}</p>
     <div className="calendar-order-meta"><span className={`order-status ${order.status}`}>{status}</span><time>{formatDate(`${order.due_date}T12:00:00`, language)}</time></div>
     {order.status !== 'delivered' && order.status !== 'cancelled' && <div className="calendar-order-actions"><button className="complete-button" onClick={onComplete}><Check size={14} />{t.markComplete}</button><label className="calendar-reschedule"><span>{t.postponedTo}</span><input type="date" value={date} min={localDateString()} onChange={(event) => setDate(event.target.value)} /><button className="text-button" disabled={!date || date === order.due_date} onClick={() => onReschedule(date)}>{t.saveDate}</button></label></div>}
+  </article>;
+}
+
+function CalendarCustomerCard({ customer, t, language, onComplete, onReschedule }: {
+  customer: Customer; t: typeof copy.en; language: Language;
+  onComplete: () => void; onReschedule: (date: string) => void;
+}) {
+  const [date, setDate] = useState(customer.delivery_date || localDateString());
+  return <article className="calendar-order-card customer-delivery-card">
+    <div className="calendar-order-top"><strong>{customer.name}</strong><span>{t.add}</span></div>
+    <p>{customer.garment_type || t.garment}{customer.phone ? ` · ${customer.phone}` : ''}</p>
+    <div className="calendar-order-meta"><span className={`order-status ${customer.delivery_status === 'completed' ? 'delivered' : 'new'}`}>{customer.delivery_status === 'completed' ? t.orderDelivered : t.orderNew}</span><time>{formatDate(`${customer.delivery_date}T12:00:00`, language)}</time></div>
+    {customer.delivery_status !== 'completed' && <div className="calendar-order-actions"><button className="complete-button" onClick={onComplete}><Check size={14} />{t.markComplete}</button><label className="calendar-reschedule"><span>{t.postponedTo}</span><input type="date" value={date} min={localDateString()} onChange={(event) => setDate(event.target.value)} /><button className="text-button" disabled={!date || date === customer.delivery_date} onClick={() => onReschedule(date)}>{t.saveDate}</button></label></div>}
   </article>;
 }
 
@@ -271,7 +284,7 @@ export default function App() {
     if (!supabase) { setLoading(false); return; }
     setLoading(true);
     setLoadError('');
-    const { data, error } = await supabase.from('customers').select('id,name,phone,notes,garment_type,measurements,measurement_notes,measurement_date,design_image,created_at,updated_at').order('updated_at', { ascending: false });
+    const { data, error } = await supabase.from('customers').select('id,name,phone,notes,garment_type,measurements,measurement_notes,measurement_date,delivery_date,delivery_status,design_image,created_at,updated_at').order('updated_at', { ascending: false });
     if (error) setLoadError(error.message || t.connectionError);
     else {
       setCustomers((data ?? []) as Customer[]);
@@ -287,7 +300,7 @@ export default function App() {
     const needle = normalizeSearch(query.trim());
     if (!needle) return customers;
     return customers.filter((customer) => {
-      const values = [customer.name, customer.phone, customer.notes, ...garmentAliases(customer.garment_type), customer.measurement_notes, customer.measurement_date];
+      const values = [customer.name, customer.phone, customer.notes, ...garmentAliases(customer.garment_type), customer.measurement_notes, customer.measurement_date, customer.delivery_date];
       for (const [key, value] of Object.entries(customer.measurements ?? {})) {
         values.push(value ?? '', labels.en[key as MeasurementField] ?? '', labels.mr[key as MeasurementField] ?? '');
       }
@@ -358,6 +371,13 @@ export default function App() {
     if (result.error) { setCalendarError(result.error.message || t.billError); return; }
     setCalendarError('');
     await Promise.all([loadCalendarOrders(), loadCustomerOrders(order.customer_id)]);
+  };
+  const updateCalendarCustomer = async (customer: Customer, updates: Partial<Pick<Customer, 'delivery_date' | 'delivery_status'>>) => {
+    if (!supabase) return;
+    const result = await supabase.from('customers').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', customer.id);
+    if (result.error) { setCalendarError(result.error.message || t.saveError); return; }
+    setCalendarError('');
+    await loadCustomers();
   };
 
   useEffect(() => {
@@ -481,7 +501,7 @@ export default function App() {
 
   const startEdit = (customer: Customer) => {
     setEditingId(customer.id);
-    setDraft({ name: customer.name, phone: customer.phone ?? '', notes: customer.notes ?? '', garment_type: customer.garment_type ?? '', measurements: customer.measurements ?? {}, measurement_notes: customer.measurement_notes ?? '', measurement_date: customer.measurement_date ?? '', design_image: customer.design_image ?? '' });
+    setDraft({ name: customer.name, phone: customer.phone ?? '', notes: customer.notes ?? '', garment_type: customer.garment_type ?? '', measurements: customer.measurements ?? {}, measurement_notes: customer.measurement_notes ?? '', measurement_date: customer.measurement_date ?? '', delivery_date: customer.delivery_date ?? '', delivery_status: customer.delivery_status ?? 'pending', design_image: customer.design_image ?? '' });
     setGarmentChoice(garmentCategory(customer.garment_type));
     setFormError(''); setScanMessage(''); setScanError(''); setScanResult(null); setPhoto(null); setRotation(0); setDraftDesignDirty(false); formClearedDrawingRef.current = false; formDrawingHistoryRef.current = []; setFormOpen(true);
   };
@@ -720,7 +740,9 @@ export default function App() {
     return { date, key: localDateString(date), inMonth: date.getMonth() === calendarMonth.getMonth() };
   });
   const deliveryOrdersOn = (date: string) => calendarOrders.filter((order) => order.due_date === date && order.status !== 'delivered' && order.status !== 'cancelled');
+  const customerDeliveriesOn = (date: string) => customers.filter((customer) => customer.delivery_date === date && customer.delivery_status !== 'completed');
   const selectedDayOrders = calendarOrders.filter((order) => order.due_date === calendarDate);
+  const selectedCustomerDeliveries = customers.filter((customer) => customer.delivery_date === calendarDate);
   const customerForOrder = (order: CustomerOrder) => customers.find((customer) => customer.id === order.customer_id);
   useEffect(() => () => { if (previewSrc) URL.revokeObjectURL(previewSrc); }, [previewSrc]);
 
@@ -759,13 +781,13 @@ export default function App() {
           <div className="calendar-panel panel">
             <div className="calendar-toolbar"><button className="icon-button" aria-label={t.monthPrev} onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={18} /></button><h2>{new Intl.DateTimeFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { month: 'long', year: 'numeric' }).format(calendarMonth)}</h2><button className="icon-button" aria-label={t.monthNext} onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={18} /></button></div>
             <div className="calendar-grid">{Array.from({ length: 7 }, (_, index) => <div className="calendar-weekday" key={`weekday-${index}`}>{new Intl.DateTimeFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { weekday: 'short' }).format(new Date(2024, 0, 7 + index))}</div>)}
-              {calendarCells.map(({ date, key, inMonth }) => { const count = deliveryOrdersOn(key).length; return <button key={key} className={`calendar-day ${inMonth ? '' : 'outside'} ${calendarDate === key ? 'chosen' : ''} ${key === todayKey ? 'today' : ''}`} onClick={() => setCalendarDate(key)}><span>{new Intl.DateTimeFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { day: 'numeric' }).format(date)}</span>{count > 0 && <small>{count}</small>}</button>; })}
+              {calendarCells.map(({ date, key, inMonth }) => { const count = calendarOrders.filter((order) => order.due_date === key).length + customers.filter((customer) => customer.delivery_date === key).length; return <button key={key} className={`calendar-day ${inMonth ? '' : 'outside'} ${calendarDate === key ? 'chosen' : ''} ${key === todayKey ? 'today' : ''}`} onClick={() => setCalendarDate(key)}><span>{new Intl.DateTimeFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { day: 'numeric' }).format(date)}</span>{count > 0 && <small>{count}</small>}</button>; })}
             </div>
-            <div className="calendar-legend"><span><i />{t.dueDate}</span><small>{calendarOrders.filter((order) => order.due_date).length} {t.order.toLocaleLowerCase(language === 'mr' ? 'mr-IN' : 'en-IN')}</small></div>
+            <div className="calendar-legend"><span><i />{t.dueDate}</span><small>{calendarOrders.filter((order) => order.due_date).length + customers.filter((customer) => customer.delivery_date).length} {t.order.toLocaleLowerCase(language === 'mr' ? 'mr-IN' : 'en-IN')}</small></div>
           </div>
           <aside className="calendar-work panel">{calendarError && <p className="inline-error history-error"><AlertCircle size={15} />{calendarError}</p>}
-            <section className="calendar-work-section"><h2>{t.todayWork}</h2><p className="calendar-date-heading">{formatDate(`${todayKey}T12:00:00`, language)}</p>{deliveryOrdersOn(todayKey).length ? <div className="calendar-order-list">{deliveryOrdersOn(todayKey).map((order) => <CalendarOrderCard key={order.id} order={order} customerName={customerForOrder(order)?.name || ''} t={t} language={language} onComplete={() => void updateCalendarOrder(order, { status: 'delivered' })} onReschedule={(date) => void updateCalendarOrder(order, { due_date: date })} />)}</div> : <p className="calendar-empty">{t.noWork}</p>}</section>
-            {calendarDate !== todayKey && <section className="calendar-work-section selected-work"><h3>{formatDate(`${calendarDate}T12:00:00`, language)}</h3>{selectedDayOrders.length ? <div className="calendar-order-list">{selectedDayOrders.map((order) => <CalendarOrderCard key={order.id} order={order} customerName={customerForOrder(order)?.name || ''} t={t} language={language} onComplete={() => void updateCalendarOrder(order, { status: 'delivered' })} onReschedule={(date) => void updateCalendarOrder(order, { due_date: date })} />)}</div> : <p className="calendar-empty">{t.noWork}</p>}</section>}
+            <section className="calendar-work-section"><h2>{t.todayWork}</h2><p className="calendar-date-heading">{formatDate(`${todayKey}T12:00:00`, language)}</p>{deliveryOrdersOn(todayKey).length + customerDeliveriesOn(todayKey).length ? <div className="calendar-order-list">{deliveryOrdersOn(todayKey).map((order) => <CalendarOrderCard key={`order-${order.id}`} order={order} customerName={customerForOrder(order)?.name || ''} t={t} language={language} onComplete={() => void updateCalendarOrder(order, { status: 'delivered' })} onReschedule={(date) => void updateCalendarOrder(order, { due_date: date })} />)}{customerDeliveriesOn(todayKey).map((customer) => <CalendarCustomerCard key={`customer-${customer.id}`} customer={customer} t={t} language={language} onComplete={() => void updateCalendarCustomer(customer, { delivery_status: 'completed' })} onReschedule={(date) => void updateCalendarCustomer(customer, { delivery_date: date, delivery_status: 'pending' })} />)}</div> : <p className="calendar-empty">{t.noWork}</p>}</section>
+            {calendarDate !== todayKey && <section className="calendar-work-section selected-work"><h3>{formatDate(`${calendarDate}T12:00:00`, language)}</h3>{selectedDayOrders.length + selectedCustomerDeliveries.length ? <div className="calendar-order-list">{selectedDayOrders.map((order) => <CalendarOrderCard key={`order-${order.id}`} order={order} customerName={customerForOrder(order)?.name || ''} t={t} language={language} onComplete={() => void updateCalendarOrder(order, { status: 'delivered' })} onReschedule={(date) => void updateCalendarOrder(order, { due_date: date })} />)}{selectedCustomerDeliveries.map((customer) => <CalendarCustomerCard key={`customer-${customer.id}`} customer={customer} t={t} language={language} onComplete={() => void updateCalendarCustomer(customer, { delivery_status: 'completed' })} onReschedule={(date) => void updateCalendarCustomer(customer, { delivery_date: date, delivery_status: 'pending' })} />)}</div> : <p className="calendar-empty">{t.noWork}</p>}</section>}
           </aside>
         </section> : <div className="content-grid">
           <section className="list-panel panel">
@@ -793,7 +815,7 @@ export default function App() {
               <div className="detail-head"><div className="detail-avatar"><UserRound size={23} /></div><div className="detail-title"><h2>{activeCustomer.name}</h2><p>{activeCustomer.phone || activeCustomer.garment_type || t.subtitle}</p></div><button className="icon-button" onClick={() => designSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })} aria-label={t.designPad} title={t.designPad}><Brush size={17} /></button><button className="icon-button" onClick={() => startEdit(activeCustomer)} aria-label={t.editCustomer} title={t.editCustomer}><Pencil size={17} /></button></div>
               <div className="detail-scroll">
                 <div className="detail-section"><div className="section-heading"><h3>{t.basic}</h3><span className="small-muted">{t.updated} {formatDate(activeCustomer.updated_at, language)}</span></div>
-                  <dl className="info-list">{activeCustomer.measurement_date && <div><dt>{t.date}</dt><dd dir="auto">{formatDate(`${activeCustomer.measurement_date}T12:00:00`, language)}</dd></div>}{activeCustomer.phone && <div><dt>{t.phone}</dt><dd dir="auto">{activeCustomer.phone}</dd></div>}{activeCustomer.garment_type && <div><dt>{t.garment}</dt><dd dir="auto">{activeCustomer.garment_type}</dd></div>}{activeCustomer.notes && <div className="notes-row"><dt>{t.notes}</dt><dd dir="auto">{activeCustomer.notes}</dd></div>}</dl>
+                  <dl className="info-list">{activeCustomer.measurement_date && <div><dt>{t.date}</dt><dd dir="auto">{formatDate(`${activeCustomer.measurement_date}T12:00:00`, language)}</dd></div>}{activeCustomer.delivery_date && <div><dt>{t.dueDate}</dt><dd dir="auto">{formatDate(`${activeCustomer.delivery_date}T12:00:00`, language)}</dd></div>}{activeCustomer.phone && <div><dt>{t.phone}</dt><dd dir="auto">{activeCustomer.phone}</dd></div>}{activeCustomer.garment_type && <div><dt>{t.garment}</dt><dd dir="auto">{activeCustomer.garment_type}</dd></div>}{activeCustomer.notes && <div className="notes-row"><dt>{t.notes}</dt><dd dir="auto">{activeCustomer.notes}</dd></div>}</dl>
                 </div>
                 <div className="detail-section"><div className="section-heading"><h3>{t.measurements}</h3><span className="measurement-pill">{Object.values(activeCustomer.measurements ?? {}).filter(Boolean).length}</span></div>
                   {Object.values(activeCustomer.measurements ?? {}).some(Boolean) ? customerGroupedMeasurements.map(({ group, fields }) => {
@@ -929,7 +951,8 @@ export default function App() {
 
               <section className="form-section"><div className="form-section-title"><span className="number-badge">1</span><h3>{t.basic}</h3></div>
                 <div className="form-grid"><label className="field full-field"><span>{t.name} <b>*</b></span><input autoFocus required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder={t.namePlaceholder} dir="auto" /></label>
-                  <label className="field"><span>{t.date}</span><input type="date" value={draft.measurement_date} onChange={(event) => setDraft({ ...draft, measurement_date: event.target.value })} aria-label={t.datePlaceholder} /></label>
+                <label className="field"><span>{t.date}</span><input type="date" value={draft.measurement_date} onChange={(event) => setDraft({ ...draft, measurement_date: event.target.value })} aria-label={t.datePlaceholder} /></label>
+                <label className="field"><span>{t.dueDate}</span><input type="date" value={draft.delivery_date} onChange={(event) => setDraft((current) => ({ ...current, delivery_date: event.target.value, delivery_status: event.target.value === current.delivery_date ? current.delivery_status : 'pending' }))} /><small className="field-hint">{t.calendarNote}</small></label>
                   <label className="field"><span>{t.phone}</span><input type="tel" inputMode="tel" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} placeholder={t.phonePlaceholder} dir="auto" /></label>
                   <label className="field"><span>{t.garment}</span><select value={garmentChoice} onChange={(event) => {
                     const choice = event.target.value;

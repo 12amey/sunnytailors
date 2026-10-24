@@ -48,6 +48,8 @@ export type Customer = {
   measurements: Measurements;
   measurement_notes: string;
   measurement_date: string;
+  delivery_date: string;
+  delivery_status: 'pending' | 'completed';
   design_image?: string;
   created_at: string;
   updated_at: string;

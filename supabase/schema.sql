@@ -11,6 +11,8 @@ create table if not exists public.customers (
   measurements jsonb not null default '{}'::jsonb,
   measurement_notes text not null default '',
   measurement_date text not null default '',
+  delivery_date text not null default '',
+  delivery_status text not null default 'pending' check (delivery_status in ('pending', 'completed')),
   design_image text not null default '',
   import_key text,
   created_at timestamptz not null default now(),
@@ -20,6 +22,8 @@ create table if not exists public.customers (
 -- Idempotency key used for direct batch imports so retrying a page cannot duplicate its records.
 alter table public.customers add column if not exists import_key text;
 alter table public.customers add column if not exists measurement_date text not null default '';
+alter table public.customers add column if not exists delivery_date text not null default '';
+alter table public.customers add column if not exists delivery_status text not null default 'pending' check (delivery_status in ('pending', 'completed'));
 alter table public.customers add column if not exists design_image text not null default '';
 create unique index if not exists customers_import_key_uidx on public.customers (import_key);
 
