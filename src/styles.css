@@ -133,6 +133,8 @@ input, textarea { color: var(--ink); }
 .order-customer-results strong { font-size: 11px; }
 .order-customer-results span, .order-customer-results small { color: #92909e; font-size: 10px; }
 .order-snapshot-note { display: flex; align-items: flex-start; gap: 7px; margin: 12px 0 0; color: #6c8b78; font-size: 10px; line-height: 1.45; }
+.order-balance-preview { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 13px; border: 1px solid #d8eee3; border-radius: 9px; background: #f1faf5; color: #4d7862; font-size: 11px; }
+.order-balance-preview strong { color: #24714e; font-size: 16px; font-weight: 700; }
 .history-list { position: relative; display: grid; gap: 0; margin: 0; padding: 0 0 0 7px; list-style: none; }
 .history-list::before { position: absolute; top: 8px; bottom: 10px; left: 11px; width: 1px; background: #e9e5f1; content: ''; }
 .history-item { position: relative; display: flex; gap: 11px; padding: 0 0 15px; }
