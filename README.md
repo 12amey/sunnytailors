@@ -1,11 +1,11 @@
 # Sunny Tailor
 
-Responsive customer and measurement book with English/Marathi interface, Supabase persistence, and optional Marathi handwriting extraction with Gemini. Measurement fields include height, blouse back length, chest, waist, arm length, paired arm measurements, and front/back neck; notebook dates are stored with the record.
+Responsive customer and measurement book with English/Marathi interface, Supabase persistence, and optional Marathi handwriting extraction with Gemini. Measurement fields include height, blouse back length, chest, waist, arm length, paired arm measurements, and front/back neck; notebook dates and customer-specific design sketches are stored with the record.
 
 ## Supabase setup
 
 1. Open the Supabase project SQL Editor.
-2. Run [`supabase/schema.sql`](supabase/schema.sql). If the app is already set up, run it again to add the batch-import duplicate-protection column and index; the script is safe to rerun.
+2. Run [`supabase/schema.sql`](supabase/schema.sql). If the app is already set up, run it again to add the batch-import, notebook date, and design sketch fields; the script is safe to rerun.
 3. Add these build variables in Netlify under **Project configuration → Environment variables**:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`

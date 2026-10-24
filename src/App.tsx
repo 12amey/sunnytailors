@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import {
-  AlertCircle, Camera, Check, ChevronRight, CircleHelp, Clock3, FileStack,
-  Languages, LoaderCircle, Pencil, Plus, RotateCw, Save, Search, Scissors,
+  AlertCircle, Brush, Camera, Check, ChevronRight, CircleHelp, Clock3, Eraser, FileStack,
+  Languages, LoaderCircle, Pencil, Plus, RotateCcw, RotateCw, Save, Search, Scissors,
   Sparkles, Trash2, UserRound, Users, X,
 } from 'lucide-react';
 import { isSupabaseConfigured, supabase } from './lib/supabase';
@@ -40,6 +40,8 @@ const copy = {
     selectPhoto: 'Choose a measurement photo', close: 'Close form', noMeasurements: 'Add values as written in the notebook.',
     cameraHint: 'A clear, upright photo with the whole page visible gives the best reading.',
     datePlaceholder: 'Choose date',
+    designPad: 'Design scratchpad', designPadHint: 'Sketch a clothing design for this customer. Save it with their record.',
+    pen: 'Pen', eraser: 'Eraser', undo: 'Undo', clearDrawing: 'Clear', saveDrawing: 'Save design', savingDrawing: 'Saving design…', drawingSaved: 'Design saved with this customer.', drawingError: 'Could not save the design.', drawingColor: 'Pen color',
     batch: 'Bulk import', batchTitle: 'Import multiple customers', batchHint: 'Choose one or more notebook photos. AI finds each customer entry on every page and saves the results automatically.',
     batchChoose: 'Choose photos', batchRun: 'Scan and save all', batchRunning: 'Scanning and saving…', batchPrivacy: 'Photos are sent to Google Gemini for reading and are not stored. Extracted customer details are saved directly to this public customer book.',
     batchDone: 'Import finished', batchProgress: 'Photos processed', batchError: 'Could not import this photo', batchEmpty: 'No customer entries with measurements were found in this photo.', batchNameFallback: 'Name not readable', batchSize: 'Each photo must be smaller than 4 MB.',
@@ -72,6 +74,8 @@ const copy = {
     selectPhoto: 'मापांच्या चिठ्ठीचा फोटो निवडा', close: 'फॉर्म बंद करा', noMeasurements: 'वहीत लिहिल्याप्रमाणे मापे भरा.',
     cameraHint: 'पूर्ण पान दिसेल असा सरळ आणि स्पष्ट फोटो काढल्यास वाचन चांगले होते.',
     datePlaceholder: 'तारीख निवडा',
+    designPad: 'डिझाइन स्क्रॅचपॅड', designPadHint: 'या ग्राहकासाठी कपड्याचे डिझाइन काढा. ते ग्राहकाच्या नोंदीसोबत जतन करा.',
+    pen: 'पेन', eraser: 'खोडरबर', undo: 'मागे घ्या', clearDrawing: 'पुसा', saveDrawing: 'डिझाइन जतन करा', savingDrawing: 'डिझाइन जतन होत आहे…', drawingSaved: 'डिझाइन या ग्राहकासोबत जतन झाले.', drawingError: 'डिझाइन जतन झाले नाही.', drawingColor: 'पेनचा रंग',
     batch: 'अनेक नोंदी एकत्र', batchTitle: 'अनेक ग्राहकांची मापे भरा', batchHint: 'वहीची एक किंवा अधिक पाने निवडा. AI प्रत्येक पानावरील ग्राहकांच्या नोंदी वाचून आपोआप जतन करेल.',
     batchChoose: 'फोटो निवडा', batchRun: 'सर्व वाचून जतन करा', batchRunning: 'वाचून जतन होत आहे…', batchPrivacy: 'फोटो वाचण्यासाठी Google Gemini कडे पाठवले जातात आणि जतन होत नाहीत. वाचलेली ग्राहक माहिती या सार्वजनिक वहीत थेट जतन होते.',
     batchDone: 'नोंदी जतन झाल्या', batchProgress: 'पूर्ण केलेले फोटो', batchError: 'हा फोटो जतन करता आला नाही', batchEmpty: 'या फोटोमध्ये मापांसह ग्राहक नोंदी सापडल्या नाहीत.', batchNameFallback: 'नाव वाचता आले नाही', batchSize: 'प्रत्येक फोटो ४ MB पेक्षा लहान हवा.',
@@ -174,14 +178,25 @@ export default function App() {
   const [batchProgress, setBatchProgress] = useState(0);
   const [batchStatus, setBatchStatus] = useState('');
   const [batchError, setBatchError] = useState('');
+  const [designImage, setDesignImage] = useState('');
+  const [designDirty, setDesignDirty] = useState(false);
+  const [designSaving, setDesignSaving] = useState(false);
+  const [designError, setDesignError] = useState('');
+  const [designMessage, setDesignMessage] = useState('');
+  const [designMode, setDesignMode] = useState<'pen' | 'eraser'>('pen');
+  const [designColor, setDesignColor] = useState('#27253a');
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
+  const designCanvasRef = useRef<HTMLCanvasElement>(null);
+  const drawingRef = useRef(false);
+  const drawingHistoryRef = useRef<string[]>([]);
+  const clearedDrawingRef = useRef(false);
 
   const loadCustomers = useCallback(async () => {
     if (!supabase) { setLoading(false); return; }
     setLoading(true);
     setLoadError('');
-    const { data, error } = await supabase.from('customers').select('*').order('updated_at', { ascending: false });
+    const { data, error } = await supabase.from('customers').select('id,name,phone,notes,garment_type,measurements,measurement_notes,measurement_date,created_at,updated_at').order('updated_at', { ascending: false });
     if (error) setLoadError(error.message || t.connectionError);
     else {
       setCustomers((data ?? []) as Customer[]);
@@ -205,6 +220,106 @@ export default function App() {
     });
   }, [customers, query]);
   const activeCustomer = customers.find((customer) => customer.id === selected) ?? null;
+
+  useEffect(() => {
+    if (!selected || !supabase) { setDesignImage(''); return; }
+    let cancelled = false;
+    setDesignImage(''); setDesignDirty(false); setDesignError(''); setDesignMessage('');
+    drawingHistoryRef.current = []; clearedDrawingRef.current = false;
+    void supabase.from('customers').select('design_image').eq('id', selected).single().then(({ data, error }) => {
+      if (cancelled) return;
+      if (error) setDesignError(error.message);
+      else setDesignImage(data?.design_image ?? '');
+    });
+    return () => { cancelled = true; };
+  }, [selected]);
+
+  useEffect(() => {
+    const canvas = designCanvasRef.current;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    if (!designImage) return;
+    const image = new Image();
+    image.onload = () => { context.clearRect(0, 0, canvas.width, canvas.height); context.drawImage(image, 0, 0, canvas.width, canvas.height); };
+    image.src = designImage;
+  }, [designImage, activeCustomer?.id]);
+
+  const canvasPoint = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    return { x: (event.clientX - rect.left) * canvas.width / rect.width, y: (event.clientY - rect.top) * canvas.height / rect.height };
+  };
+
+  const startDrawing = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const point = canvasPoint(event);
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    if (drawingHistoryRef.current.length >= 20) drawingHistoryRef.current.shift();
+    drawingHistoryRef.current.push(canvas.toDataURL('image/webp', 0.65));
+    drawingRef.current = true;
+    clearedDrawingRef.current = false;
+    canvas.setPointerCapture(event.pointerId);
+    context.beginPath(); context.moveTo(point.x, point.y);
+    context.lineCap = 'round'; context.lineJoin = 'round';
+    setDesignDirty(true); setDesignMessage(''); setDesignError('');
+  };
+
+  const continueDrawing = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    if (!drawingRef.current) return;
+    const canvas = event.currentTarget;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    const point = canvasPoint(event);
+    context.globalCompositeOperation = designMode === 'eraser' ? 'destination-out' : 'source-over';
+    context.strokeStyle = designColor;
+    context.lineWidth = 7 * (canvas.width / canvas.getBoundingClientRect().width);
+    context.lineTo(point.x, point.y); context.stroke();
+  };
+
+  const stopDrawing = (event: ReactPointerEvent<HTMLCanvasElement>) => {
+    drawingRef.current = false;
+    const context = event.currentTarget.getContext('2d');
+    if (context) context.globalCompositeOperation = 'source-over';
+  };
+
+  const clearDesign = () => {
+    const canvas = designCanvasRef.current;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
+    if (drawingHistoryRef.current.length >= 20) drawingHistoryRef.current.shift();
+    drawingHistoryRef.current.push(canvas.toDataURL('image/webp', 0.65));
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    clearedDrawingRef.current = true; setDesignDirty(true); setDesignMessage(''); setDesignError('');
+  };
+
+  const undoDesign = () => {
+    const canvas = designCanvasRef.current;
+    const context = canvas?.getContext('2d');
+    if (!canvas || !context) return;
+    const previous = drawingHistoryRef.current.pop();
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    if (!previous) clearedDrawingRef.current = true;
+    else {
+      const image = new Image();
+      image.onload = () => { context.drawImage(image, 0, 0, canvas.width, canvas.height); };
+      image.src = previous;
+      clearedDrawingRef.current = false;
+    }
+    setDesignDirty(true); setDesignMessage(''); setDesignError('');
+  };
+
+  const saveDesign = async () => {
+    const canvas = designCanvasRef.current;
+    if (!supabase || !activeCustomer || !canvas || designSaving) return;
+    setDesignSaving(true); setDesignError(''); setDesignMessage('');
+    const image = clearedDrawingRef.current ? '' : canvas.toDataURL('image/webp', 0.82);
+    const { error } = await supabase.from('customers').update({ design_image: image, updated_at: new Date().toISOString() }).eq('id', activeCustomer.id);
+    if (error) setDesignError(error.message || t.drawingError);
+    else { setDesignImage(image); setDesignDirty(false); setDesignMessage(t.drawingSaved); drawingHistoryRef.current = []; clearedDrawingRef.current = false; }
+    setDesignSaving(false);
+  };
 
   const startNew = () => {
     setEditingId(null); setDraft(emptyDraft()); setGarmentChoice(''); setFormError(''); setScanMessage(''); setScanError('');
@@ -409,6 +524,20 @@ export default function App() {
                 <div className="detail-section"><div className="section-heading"><h3>{t.measurements}</h3><span className="measurement-pill">{Object.values(activeCustomer.measurements ?? {}).filter(Boolean).length}</span></div>
                   {Object.values(activeCustomer.measurements ?? {}).some(Boolean) ? <div className="measure-grid">{measurementFields.filter((field) => activeCustomer.measurements?.[field]).map((field) => <div className="measure-cell" key={field}><span>{labels[language][field]}</span><strong dir="auto">{activeCustomer.measurements[field]}</strong></div>)}</div> : <p className="muted-copy">{t.emptyMeasure}</p>}
                   {activeCustomer.measurement_notes && <div className="measure-notes"><span>{t.measureNotes}</span><p dir="auto">{activeCustomer.measurement_notes}</p></div>}
+                </div>
+                <div className="detail-section design-section">
+                  <div className="section-heading"><div><h3>{t.designPad}</h3><p className="design-hint">{t.designPadHint}</p></div><Brush size={17} /></div>
+                  <div className="drawing-toolbar">
+                    <button className={`draw-tool ${designMode === 'pen' ? 'active' : ''}`} onClick={() => setDesignMode('pen')} title={t.pen}><Pencil size={15} />{t.pen}</button>
+                    <button className={`draw-tool ${designMode === 'eraser' ? 'active' : ''}`} onClick={() => setDesignMode('eraser')} title={t.eraser}><Eraser size={15} />{t.eraser}</button>
+                    <button className="draw-icon-tool" onClick={undoDesign} disabled={drawingHistoryRef.current.length === 0} title={t.undo} aria-label={t.undo}><RotateCcw size={15} /></button>
+                    <button className="draw-icon-tool" onClick={clearDesign} title={t.clearDrawing}>{language === 'mr' ? 'पुसा' : 'Clear'}</button>
+                    <label className="draw-color" title={t.drawingColor}><span>{t.drawingColor}</span><input type="color" value={designColor} onChange={(event) => setDesignColor(event.target.value)} aria-label={t.drawingColor} /></label>
+                  </div>
+                  <canvas ref={designCanvasRef} className="design-canvas" width={1000} height={500} onPointerDown={startDrawing} onPointerMove={continueDrawing} onPointerUp={stopDrawing} onPointerCancel={stopDrawing} aria-label={t.designPad} />
+                  {designError && <p className="inline-error design-message"><AlertCircle size={15} />{designError}</p>}
+                  {designMessage && <p className="inline-success design-message"><Check size={15} />{designMessage}</p>}
+                  <div className="design-save-row"><span>{designDirty ? (language === 'mr' ? 'जतन न केलेले बदल' : 'Unsaved changes') : ''}</span><button className="secondary-button" onClick={() => void saveDesign()} disabled={!designDirty || designSaving}>{designSaving ? <LoaderCircle className="spin" size={15} /> : <Save size={15} />}{designSaving ? t.savingDrawing : t.saveDrawing}</button></div>
                 </div>
                 <div className="detail-footer"><button className="danger-button" onClick={() => void deleteCustomer()}><Trash2 size={16} />{t.delete}</button><span><Clock3 size={14} />{formatDate(activeCustomer.created_at, language)}</span></div>
               </div>

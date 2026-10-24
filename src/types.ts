@@ -28,11 +28,12 @@ export type Customer = {
   measurements: Measurements;
   measurement_notes: string;
   measurement_date: string;
+  design_image?: string;
   created_at: string;
   updated_at: string;
 };
 
-export type CustomerDraft = Omit<Customer, 'id' | 'created_at' | 'updated_at'>;
+export type CustomerDraft = Omit<Customer, 'id' | 'created_at' | 'updated_at' | 'design_image'>;
 
 export type ScanField = { value: string; confidence: number };
 export type ScanResult = {

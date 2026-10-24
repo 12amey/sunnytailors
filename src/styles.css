@@ -114,6 +114,19 @@ input, textarea { color: var(--ink); }
 .measurement-pill { min-width: 23px; padding: 3px 7px; border-radius: 99px; background: #f2efff; color: #6d55ce; font-size: 10px; text-align: center; }
 .measure-notes { margin-top: 11px; padding: 12px; border-radius: 9px; background: #fbfafc; }
 .measure-notes p { margin: 6px 0 0; color: #555164; font-size: 12px; white-space: pre-wrap; }
+.design-section .section-heading { align-items: flex-start; color: #7660d8; }
+.design-hint { max-width: 390px; margin: 5px 0 0; color: #92909e; font-size: 10px; font-weight: 400; line-height: 1.45; }
+.drawing-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0 0 9px; }
+.draw-tool, .draw-icon-tool { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 31px; padding: 6px 8px; border: 1px solid #ece9f1; border-radius: 8px; background: white; color: #666276; font-size: 10px; }
+.draw-tool.active { border-color: #bfb2f4; background: #f2efff; color: #654bd0; }
+.draw-icon-tool:disabled { opacity: .45; cursor: not-allowed; }
+.draw-color { display: inline-flex; align-items: center; gap: 5px; margin-left: auto; color: #8b8798; font-size: 9px; }
+.draw-color input { width: 28px; height: 27px; padding: 2px; border: 1px solid #ece9f1; border-radius: 7px; background: white; }
+.design-canvas { display: block; width: 100%; height: auto; aspect-ratio: 2 / 1; border: 1px solid #e7e3ef; border-radius: 9px; background: #fff; cursor: crosshair; touch-action: none; }
+.design-message { margin: 9px 0 0; align-items: flex-start; line-height: 1.4; }
+.design-save-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 36px; margin-top: 9px; }
+.design-save-row > span { color: #968fa9; font-size: 10px; }
+.design-save-row .secondary-button { padding: 7px 9px; font-size: 10px; }
 .detail-footer { justify-content: space-between; gap: 10px; padding: 15px 0 3px; }
 .detail-footer > span { display: inline-flex; align-items: center; gap: 5px; color: #aaa7b3; font-size: 10px; }
 .danger-button { display: inline-flex; align-items: center; gap: 6px; border: 0; padding: 5px 0; color: #bb5b6b; background: transparent; font-size: 11px; }
