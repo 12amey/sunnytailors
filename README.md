@@ -5,7 +5,7 @@ Responsive customer and measurement book with English/Marathi interface, Supabas
 ## Supabase setup
 
 1. Open the Supabase project SQL Editor.
-2. Run [`supabase/schema.sql`](supabase/schema.sql) once.
+2. Run [`supabase/schema.sql`](supabase/schema.sql). If the app is already set up, run it again to add the batch-import duplicate-protection column and index; the script is safe to rerun.
 3. Add these build variables in Netlify under **Project configuration → Environment variables**:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
@@ -16,7 +16,7 @@ The publishable key is intentionally used in the browser. The SQL file grants th
 
 Set `GEMINI_API_KEY` as a private Netlify environment variable. Do not prefix it with `NEXT_PUBLIC_`, add it to a client file, or commit it. Optionally set `GEMINI_MODEL`; the default is `gemini-3.8-flash`.
 
-When a user clicks **Scan Marathi note**, the selected image is sent through a Netlify Function to Google Gemini and returned as an editable draft. The app does not store the uploaded image, and it does not save the extracted record until the user confirms the form. Review values carefully; handwriting recognition can make mistakes. Since the scan function is public, set API quotas in Google AI Studio and monitor usage.
+**Scan Marathi note** sends one customer's photo through a Netlify Function to Google Gemini and returns an editable draft. **Bulk import** accepts multiple notebook photos; each photo can contain multiple customer sections, and readable entries are saved directly without a confirmation step. The same page will not be imported twice. The app does not store uploaded images. Handwriting recognition can make mistakes, so check saved records after an import. Since both scan functions are public, set API quotas in Google AI Studio and monitor usage.
 
 ## Local development
 

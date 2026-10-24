@@ -1,0 +1,96 @@
+const fieldNames = [
+  'pants_length', 'top_length', 'waist', 'hip',
+  'sleeve_length', 'sleeve_width', 'front_neck', 'back_neck',
+];
+const scansByIp = new Map();
+
+const scanField = { type: 'OBJECT', properties: { value: { type: 'STRING' }, confidence: { type: 'NUMBER' } }, required: ['value', 'confidence'] };
+const responseSchema = {
+  type: 'OBJECT',
+  properties: {
+    customers: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: scanField,
+          phone: scanField,
+          notes: scanField,
+          garment_type: scanField,
+          measurement_notes: scanField,
+          measurements: {
+            type: 'OBJECT',
+            properties: Object.fromEntries(fieldNames.map((field) => [field, scanField])),
+            required: fieldNames,
+          },
+        },
+        required: ['name', 'phone', 'notes', 'garment_type', 'measurement_notes', 'measurements'],
+      },
+    },
+  },
+  required: ['customers'],
+};
+
+function jsonResponse(statusCode, payload) {
+  return new Response(JSON.stringify(payload), {
+    status: statusCode,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' },
+  });
+}
+
+export default async (request) => {
+  if (request.method !== 'POST') return jsonResponse(405, { error: 'Use POST to scan notebook pages.' });
+  if (!process.env.GEMINI_API_KEY) return jsonResponse(503, { error: 'Add GEMINI_API_KEY to Netlify environment variables to enable image scanning.' });
+
+  const ip = request.headers.get('x-nf-client-connection-ip') || 'unknown';
+  const now = Date.now();
+  const recentScans = (scansByIp.get(ip) || []).filter((time) => now - time < 60_000);
+  if (recentScans.length >= 12) return jsonResponse(429, { error: 'Too many pages were scanned in a short time. Wait one minute and try again.' });
+  recentScans.push(now);
+  scansByIp.set(ip, recentScans);
+
+  let input;
+  try { input = await request.json(); }
+  catch { return jsonResponse(400, { error: 'The image request was not valid.' }); }
+
+  if (typeof input.image !== 'string' || input.image.length > 5_600_000) return jsonResponse(413, { error: 'Choose an image smaller than 4 MB.' });
+  const mimeType = String(input.mimeType || '');
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) return jsonResponse(415, { error: 'Use a JPG, PNG, or WebP image.' });
+
+  const languageInstruction = input.language === 'mr'
+    ? 'Write Marathi handwriting in Marathi script. Preserve the exact wording and numerals.'
+    : 'Preserve the script used in the notebook. Do not translate any value.';
+  const prompt = `Read this tailor's measurement notebook page. It can contain multiple separate customer entries and may be handwritten Marathi or rotated. ${languageInstruction}
+Return one JSON object whose customers array has one object for each clearly separate customer entry that contains at least one clearly readable measurement. Do not merge measurements across customer sections. Copy each name and phone exactly when legible. A name can be empty when unreadable; never invent it. Map only clearly matching measurements to these fixed keys: pants_length, top_length, waist, hip, sleeve_length, sleeve_width, front_neck, back_neck. Keep values exactly as written, including Marathi digits and units. Do not convert units, guess, or infer. For each missing or unclear field return an empty value and confidence 0. Confidence is 0 to 1 for legibility. Use notes for other explicit customer instructions, garment_type for an explicitly written garment, and measurement_notes for units or context. Ignore printed page labels, dates, and unrelated marks. If no measurement entry is readable, return an empty customers array.`;
+
+  const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  let upstream;
+  try {
+    upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+      body: JSON.stringify({
+        contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: input.image } }, { text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json', responseSchema },
+      }),
+    });
+  } catch {
+    return jsonResponse(502, { error: 'Could not reach Google Gemini. Try again in a moment.' });
+  }
+
+  if (!upstream.ok) {
+    const details = await upstream.json().catch(() => ({}));
+    console.error('Gemini batch scan failed:', upstream.status, details?.error?.status || 'upstream error');
+    return jsonResponse(502, { error: 'Gemini could not read this page. Check the API key, model, and quota.' });
+  }
+
+  const result = await upstream.json();
+  const text = result?.candidates?.[0]?.content?.parts?.find((part) => part.text)?.text;
+  if (!text) return jsonResponse(502, { error: 'Gemini returned no readable entries. Try a clearer photo.' });
+  try {
+    const parsed = JSON.parse(text);
+    return jsonResponse(200, { customers: Array.isArray(parsed.customers) ? parsed.customers : [] });
+  } catch {
+    return jsonResponse(502, { error: 'Gemini returned an unreadable result. Try scanning the page again.' });
+  }
+};

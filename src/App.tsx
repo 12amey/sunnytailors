@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import {
-  AlertCircle, Camera, Check, ChevronRight, CircleHelp, Clock3,
+  AlertCircle, Camera, Check, ChevronRight, CircleHelp, Clock3, FileStack,
   Languages, LoaderCircle, Pencil, Plus, RotateCw, Save, Search, Scissors,
   Sparkles, Trash2, UserRound, Users, X,
 } from 'lucide-react';
@@ -37,6 +37,9 @@ const copy = {
     unitHint: 'Enter measurements as written in the notebook. Marathi text and digits are supported.',
     selectPhoto: 'Choose a measurement photo', close: 'Close form', noMeasurements: 'Add values as written in the notebook.',
     cameraHint: 'A clear, upright photo with the whole page visible gives the best reading.',
+    batch: 'Bulk import', batchTitle: 'Import multiple customers', batchHint: 'Choose one or more notebook photos. AI finds each customer entry on every page and saves the results automatically.',
+    batchChoose: 'Choose photos', batchRun: 'Scan and save all', batchRunning: 'Scanning and saving…', batchPrivacy: 'Photos are sent to Google Gemini for reading and are not stored. Extracted customer details are saved directly to this public customer book.',
+    batchDone: 'Import finished', batchProgress: 'Photos processed', batchError: 'Could not import this photo', batchEmpty: 'No customer entries with measurements were found in this photo.', batchNameFallback: 'Name not readable', batchSize: 'Each photo must be smaller than 4 MB.',
   },
   mr: {
     subtitle: 'ग्राहक वही', search: 'नाव, फोन किंवा माप शोधा…', add: 'ग्राहक जोडा',
@@ -63,6 +66,9 @@ const copy = {
     unitHint: 'वहीत लिहिलेली मापे तशीच भरा. मराठी मजकूर आणि अंक चालतात.',
     selectPhoto: 'मापांच्या चिठ्ठीचा फोटो निवडा', close: 'फॉर्म बंद करा', noMeasurements: 'वहीत लिहिल्याप्रमाणे मापे भरा.',
     cameraHint: 'पूर्ण पान दिसेल असा सरळ आणि स्पष्ट फोटो काढल्यास वाचन चांगले होते.',
+    batch: 'अनेक नोंदी एकत्र', batchTitle: 'अनेक ग्राहकांची मापे भरा', batchHint: 'वहीची एक किंवा अधिक पाने निवडा. AI प्रत्येक पानावरील ग्राहकांच्या नोंदी वाचून आपोआप जतन करेल.',
+    batchChoose: 'फोटो निवडा', batchRun: 'सर्व वाचून जतन करा', batchRunning: 'वाचून जतन होत आहे…', batchPrivacy: 'फोटो वाचण्यासाठी Google Gemini कडे पाठवले जातात आणि जतन होत नाहीत. वाचलेली ग्राहक माहिती या सार्वजनिक वहीत थेट जतन होते.',
+    batchDone: 'नोंदी जतन झाल्या', batchProgress: 'पूर्ण केलेले फोटो', batchError: 'हा फोटो जतन करता आला नाही', batchEmpty: 'या फोटोमध्ये मापांसह ग्राहक नोंदी सापडल्या नाहीत.', batchNameFallback: 'नाव वाचता आले नाही', batchSize: 'प्रत्येक फोटो ४ MB पेक्षा लहान हवा.',
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -102,6 +108,22 @@ const fileToBase64 = (file: File) => new Promise<string>((resolve, reject) => {
   reader.readAsDataURL(file);
 });
 
+async function readJsonResponse(response: Response): Promise<{ error?: string; result?: ScanResult; customers?: ScanResult[] }> {
+  const text = await response.text();
+  let body: { error?: string; result?: ScanResult; customers?: ScanResult[] };
+  try { body = JSON.parse(text); }
+  catch {
+    const statusHint = response.status === 404
+      ? 'The scan function is not deployed yet. Wait for the Netlify deploy to finish and retry.'
+      : response.status === 413
+        ? 'This photo is too large for Netlify. Choose a smaller image.'
+        : `The scan service returned a non-JSON error (HTTP ${response.status}). Check the Netlify function deploy and logs.`;
+    throw new Error(statusHint);
+  }
+  if (!response.ok) throw new Error(body.error || `The scan service failed (HTTP ${response.status}).`);
+  return body;
+}
+
 export default function App() {
   const [language, setLanguage] = useState<Language>(() => localStorage.getItem('sunny-language') === 'mr' ? 'mr' : 'en');
   const t = copy[language];
@@ -121,6 +143,12 @@ export default function App() {
   const [scanResult, setScanResult] = useState<ScanResult | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [rotation, setRotation] = useState(0);
+  const [batchOpen, setBatchOpen] = useState(false);
+  const [batchPhotos, setBatchPhotos] = useState<File[]>([]);
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+  const [batchStatus, setBatchStatus] = useState('');
+  const [batchError, setBatchError] = useState('');
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
@@ -171,7 +199,7 @@ export default function App() {
     event.target.value = '';
     setScanError(''); setScanMessage(''); setScanResult(null); setRotation(0);
     if (file && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) { setScanError(language === 'mr' ? 'कृपया JPG, PNG किंवा WebP फोटो निवडा.' : 'Choose a JPG, PNG, or WebP image.'); return; }
-    if (file && file.size > 9 * 1024 * 1024) { setScanError(language === 'mr' ? 'फोटो ९ MB पेक्षा लहान निवडा.' : 'Choose an image smaller than 9 MB.'); return; }
+    if (file && file.size > 4 * 1024 * 1024) { setScanError(language === 'mr' ? 'फोटो ४ MB पेक्षा लहान निवडा.' : 'Choose an image smaller than 4 MB.'); return; }
     setPhoto(file);
   };
 
@@ -185,8 +213,8 @@ export default function App() {
         method: 'POST', headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ mimeType: prepared.type || 'image/jpeg', image, language }),
       });
-      const body = await response.json();
-      if (!response.ok) throw new Error(response.status === 503 ? t.scanNeedKey : body.error || t.scanError);
+      const body = await readJsonResponse(response);
+      if (response.status === 503) throw new Error(t.scanNeedKey);
       const result = body.result as ScanResult;
       setScanResult(result);
       setDraft((current) => ({
@@ -202,6 +230,67 @@ export default function App() {
     } catch (error) {
       setScanError(error instanceof Error ? error.message : t.scanError);
     } finally { setScanning(false); }
+  };
+
+  const selectBatchPhotos = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+    event.target.value = '';
+    setBatchError(''); setBatchStatus(''); setBatchProgress(0);
+    if (files.some((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type))) {
+      setBatchError(language === 'mr' ? 'JPG, PNG किंवा WebP फोटोच निवडा.' : 'Choose JPG, PNG, or WebP images.'); return;
+    }
+    if (files.some((file) => file.size > 4 * 1024 * 1024)) { setBatchError(t.batchSize); return; }
+    setBatchPhotos(files);
+  };
+
+  const saveBatchPhotos = async () => {
+    if (!supabase || !batchPhotos.length || batchRunning) return;
+    setBatchRunning(true); setBatchProgress(0); setBatchError(''); setBatchStatus('');
+    let saved = 0; let skipped = 0; const errors: string[] = [];
+    try {
+      for (let photoIndex = 0; photoIndex < batchPhotos.length; photoIndex += 1) {
+        const photo = batchPhotos[photoIndex];
+        try {
+          const image = await fileToBase64(photo);
+          const response = await fetch('/api/scan-batch-measurements', {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ mimeType: photo.type || 'image/jpeg', image, language }),
+          });
+          const body = await readJsonResponse(response);
+          const entries = body.customers ?? [];
+          if (!entries.length) { errors.push(`${photo.name}: ${t.batchEmpty}`); }
+          else {
+            const digest = await crypto.subtle.digest('SHA-256', await photo.arrayBuffer());
+            const imageKey = Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+            const payload = entries.flatMap((entry, entryIndex) => {
+              const measurements = Object.fromEntries(measurementFields.map((field) => [field, entry.measurements?.[field]?.value?.trim() || '']).filter(([, value]) => value)) as CustomerDraft['measurements'];
+              const hasContent = Object.keys(measurements).length > 0 || Boolean(entry.notes?.value?.trim() || entry.measurement_notes?.value?.trim() || entry.phone?.value?.trim());
+              if (!hasContent) return [];
+              const recognizedName = entry.name?.value?.trim() || '';
+              return [{
+                name: recognizedName || `${t.batchNameFallback} (${photoIndex + 1}-${entryIndex + 1})`,
+                phone: entry.phone?.value?.trim() || '', notes: entry.notes?.value?.trim() || '',
+                garment_type: entry.garment_type?.value?.trim() || '', measurements,
+                measurement_notes: entry.measurement_notes?.value?.trim() || '',
+                import_key: `${imageKey}:${entryIndex}`, updated_at: new Date().toISOString(),
+              }];
+            });
+            if (!payload.length) errors.push(`${photo.name}: ${t.batchEmpty}`);
+            else {
+              const result = await supabase.from('customers').upsert(payload, { onConflict: 'import_key', ignoreDuplicates: true }).select('id');
+              if (result.error) throw new Error(result.error.message || t.saveError);
+              saved += result.data?.length ?? 0;
+              skipped += payload.length - (result.data?.length ?? 0);
+            }
+          }
+        } catch (error) { errors.push(`${photo.name}: ${error instanceof Error ? error.message : t.batchError}`); }
+        setBatchProgress(photoIndex + 1);
+      }
+      await loadCustomers();
+      const summary = `${t.batchDone}: ${saved} ${language === 'mr' ? 'नवीन नोंदी' : 'new records'}${skipped ? `, ${skipped} ${language === 'mr' ? 'आधीच जतन' : 'already saved'}` : ''}. ${t.batchProgress}: ${batchPhotos.length}/${batchPhotos.length}.`;
+      setBatchStatus(summary);
+      setBatchError(errors.join('\n'));
+    } finally { setBatchRunning(false); }
   };
 
   const saveCustomer = async (event: FormEvent<HTMLFormElement>) => {
@@ -252,7 +341,7 @@ export default function App() {
             <h1>{t.records}</h1>
             <p className="heading-copy">{customers.length} {t.customers}</p>
           </div>
-          <button className="primary-button" onClick={startNew}><Plus size={18} />{t.add}</button>
+          <div className="heading-actions"><button className="secondary-button" onClick={() => { setBatchOpen(true); setBatchPhotos([]); setBatchError(''); setBatchStatus(''); setBatchProgress(0); }}><FileStack size={17} />{t.batch}</button><button className="primary-button" onClick={startNew}><Plus size={18} />{t.add}</button></div>
         </section>
 
         {!isSupabaseConfigured ? (
@@ -299,6 +388,20 @@ export default function App() {
         </div>
         <footer className="page-footer"><span>Sunny Tailor · {language === 'mr' ? 'ग्राहक आणि मापे' : 'Customer & measurement book'}</span><span><span className="status-dot" />{t.localData}</span></footer>
       </main>
+
+      {batchOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !batchRunning) setBatchOpen(false); }}>
+        <section className="batch-modal" role="dialog" aria-modal="true" aria-labelledby="batch-title">
+          <header className="modal-head"><div><p className="eyebrow">SUNNY TAILOR · AI</p><h2 id="batch-title">{t.batchTitle}</h2></div><button className="icon-button" onClick={() => setBatchOpen(false)} disabled={batchRunning} aria-label={t.cancel}><X size={19} /></button></header>
+          <div className="batch-body"><p className="batch-hint">{t.batchHint}</p>
+            <label className="batch-drop"><FileStack size={25} /><strong>{t.batchChoose}</strong><span>{language === 'mr' ? 'JPG, PNG, WebP · एका पानाचा एक फोटो · ४ MB पर्यंत' : 'JPG, PNG, WebP · one page per photo · up to 4 MB each'}</span><input className="visually-hidden" type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={selectBatchPhotos} /></label>
+            {batchPhotos.length > 0 && <div className="batch-file-list">{batchPhotos.map((file, index) => <div className="batch-file" key={`${file.name}-${index}`}><Check size={15} /><span>{file.name}</span><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small></div>)}</div>}
+            {batchRunning && <div className="batch-progress"><span><LoaderCircle className="spin" size={16} />{t.batchRunning} {batchProgress}/{batchPhotos.length}</span><progress max={batchPhotos.length} value={batchProgress} /></div>}
+            {batchStatus && <p className="inline-success batch-message"><Check size={16} />{batchStatus}</p>}{batchError && <p className="inline-error batch-message"><AlertCircle size={16} />{batchError}</p>}
+            <p className="privacy-note batch-privacy">{t.batchPrivacy}</p>
+          </div>
+          <footer className="modal-footer"><button className="plain-button" onClick={() => setBatchOpen(false)} disabled={batchRunning}>{t.cancel}</button><button className="primary-button" onClick={() => void saveBatchPhotos()} disabled={batchRunning || batchPhotos.length === 0}>{batchRunning ? <LoaderCircle className="spin" size={17} /> : <Sparkles size={17} />}{batchRunning ? t.batchRunning : t.batchRun}</button></footer>
+        </section>
+      </div>}
 
       {formOpen && <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !saving) setFormOpen(false); }}>
         <section className="customer-modal" role="dialog" aria-modal="true" aria-labelledby="form-title">

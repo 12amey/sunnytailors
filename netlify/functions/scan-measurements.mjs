@@ -42,13 +42,13 @@ export default async (request) => {
   scansByIp.set(ip, recentScans);
 
   const declaredSize = Number(request.headers.get('content-length') || 0);
-  if (declaredSize > 14 * 1024 * 1024) return jsonResponse(413, { error: 'Choose an image smaller than 10 MB.' });
+  if (declaredSize > 6 * 1024 * 1024) return jsonResponse(413, { error: 'Choose an image smaller than 4 MB.' });
 
   let input;
   try { input = await request.json(); }
   catch { return jsonResponse(400, { error: 'The image request was not valid.' }); }
 
-  if (typeof input.image !== 'string' || input.image.length > 13_000_000) return jsonResponse(413, { error: 'Choose an image smaller than 10 MB.' });
+  if (typeof input.image !== 'string' || input.image.length > 5_600_000) return jsonResponse(413, { error: 'Choose an image smaller than 4 MB.' });
   const mimeType = String(input.mimeType || '');
   if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) return jsonResponse(415, { error: 'Use a JPG, PNG, or WebP image.' });
 

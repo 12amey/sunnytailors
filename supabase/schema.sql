@@ -10,9 +10,14 @@ create table if not exists public.customers (
   garment_type text not null default '',
   measurements jsonb not null default '{}'::jsonb,
   measurement_notes text not null default '',
+  import_key text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Idempotency key used for direct batch imports so retrying a page cannot duplicate its records.
+alter table public.customers add column if not exists import_key text;
+create unique index if not exists customers_import_key_uidx on public.customers (import_key);
 
 create index if not exists customers_name_idx on public.customers (name);
 create index if not exists customers_phone_idx on public.customers (phone);
