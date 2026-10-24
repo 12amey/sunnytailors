@@ -78,16 +78,21 @@ export default async (request) => {
 Return one JSON object whose customers array has one object for each clearly separate customer entry that contains at least one clearly readable measurement. Do not merge measurements across customer sections. Copy each name and phone exactly when legible. A name can be empty when unreadable; never invent it. Extract each entry's date as YYYY-MM-DD when clearly readable. Map only clearly matching measurements to these fixed keys: height, blouse_back_length, chest, waist, arm_length, arm_measurements, pants_length, top_length, hip, sleeve_length, sleeve_width, front_neck, back_neck. Tailor-specific Marathi clues: उंची means height; पाठीची लांबी/ब्लाउज मागची लांबी means blouse_back_length; छाती or छातीचा घेर means chest; कंबर means waist; बाहीची लांबी means arm_length; paired बाही measurements or a written range such as ११-१० belongs in arm_measurements and should be preserved as one value; पुढचा गळा/गळा पुढे means front_neck. Keep values exactly as written, including Marathi digits and units. Do not convert units, guess, or infer. For each missing or unclear field return an empty value and confidence 0. Confidence is 0 to 1 for legibility. Use notes for other explicit customer instructions, garment_type for an explicitly written garment, and measurement_notes for units or context. Ignore printed page labels and unrelated marks. If no measurement entry is readable, return an empty customers array.`;
 
   const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  const requestModel = (modelName) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+    body: JSON.stringify({
+      contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: input.image } }, { text: prompt }] }],
+      generationConfig: { responseMimeType: 'application/json', responseSchema },
+    }),
+  });
   let upstream;
   try {
-    upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: input.image } }, { text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', responseSchema },
-      }),
-    });
+    upstream = await requestModel(model);
+    if (upstream.status === 503 && model !== 'gemini-3.6-flash') {
+      console.warn('Gemini selected model is under high demand; retrying batch scan with gemini-3.6-flash.');
+      upstream = await requestModel('gemini-3.6-flash');
+    }
   } catch {
     return jsonResponse(502, { error: 'Could not reach Google Gemini. Try again in a moment.' });
   }

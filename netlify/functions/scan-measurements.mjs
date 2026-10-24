@@ -73,17 +73,22 @@ export default async (request) => {
 Return one JSON object matching the supplied schema. Copy the customer name and phone exactly if legible. Extract the measurement date as YYYY-MM-DD when it is clearly readable; otherwise leave it empty. Map only clearly matching measurements to these fixed keys: height, blouse_back_length, chest, waist, arm_length, arm_measurements, pants_length, top_length, hip, sleeve_length, sleeve_width, front_neck, back_neck. Tailor-specific Marathi clues: उंची means height; पाठीची लांबी/ब्लाउज मागची लांबी means blouse_back_length; छाती or छातीचा घेर means chest; कंबर means waist; बाहीची लांबी means arm_length; paired बाही measurements or a written range such as ११-१० belongs in arm_measurements and should be preserved as one value; पुढचा गळा/गळा पुढे means front_neck. Keep values exactly as written, including Marathi digits and units. Do not convert units. Do not guess or infer. If a field is missing, unclear, or not visible, return an empty value and confidence 0. Confidence is a number from 0 to 1 for how clearly the text is readable. Use notes for other clear customer-specific instructions, garment_type for an explicitly written garment, and measurement_notes for units or general measurement context. Do not treat printed page labels as customer values.`;
 
   const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  const requestModel = (modelName) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+    body: JSON.stringify({
+      contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: input.image } }, { text: prompt }] }],
+      // Gemini 3.8 no longer accepts temperature/topP/topK overrides.
+      generationConfig: { responseMimeType: 'application/json', responseSchema },
+    }),
+  });
   let upstream;
   try {
-    upstream = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
-      body: JSON.stringify({
-        contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: input.image } }, { text: prompt }] }],
-        // Gemini 3.8 no longer accepts temperature/topP/topK overrides.
-        generationConfig: { responseMimeType: 'application/json', responseSchema },
-      }),
-    });
+    upstream = await requestModel(model);
+    if (upstream.status === 503 && model !== 'gemini-3.6-flash') {
+      console.warn('Gemini 3.8/selected model is under high demand; retrying with gemini-3.6-flash.');
+      upstream = await requestModel('gemini-3.6-flash');
+    }
   } catch {
     return jsonResponse(502, { error: 'Could not reach Google Gemini. Try again in a moment.' });
   }

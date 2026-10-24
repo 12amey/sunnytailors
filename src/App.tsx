@@ -40,6 +40,7 @@ const copy = {
     selectPhoto: 'Choose a measurement photo', close: 'Close form', noMeasurements: 'Add values as written in the notebook.',
     cameraHint: 'A clear, upright photo with the whole page visible gives the best reading.',
     datePlaceholder: 'Choose date',
+    bodyGroup: 'Body measurements', lengthGroup: 'Garment lengths', armsGroup: 'Sleeve and arm measurements', neckGroup: 'Neck measurements',
     designPad: 'Design scratchpad', designPadHint: 'Sketch a clothing design for this customer. Save it with their record.',
     pen: 'Pen', eraser: 'Eraser', undo: 'Undo', clearDrawing: 'Clear', saveDrawing: 'Save design', savingDrawing: 'Saving design…', drawingSaved: 'Design saved with this customer.', drawingError: 'Could not save the design.', drawingColor: 'Pen color',
     batch: 'Bulk import', batchTitle: 'Import multiple customers', batchHint: 'Choose one or more notebook photos. AI finds each customer entry on every page and saves the results automatically.',
@@ -74,6 +75,7 @@ const copy = {
     selectPhoto: 'मापांच्या चिठ्ठीचा फोटो निवडा', close: 'फॉर्म बंद करा', noMeasurements: 'वहीत लिहिल्याप्रमाणे मापे भरा.',
     cameraHint: 'पूर्ण पान दिसेल असा सरळ आणि स्पष्ट फोटो काढल्यास वाचन चांगले होते.',
     datePlaceholder: 'तारीख निवडा',
+    bodyGroup: 'शरीराची मापे', lengthGroup: 'कपड्याची लांबी', armsGroup: 'बाहीची मापे', neckGroup: 'गळ्याची मापे',
     designPad: 'डिझाइन स्क्रॅचपॅड', designPadHint: 'या ग्राहकासाठी कपड्याचे डिझाइन काढा. ते ग्राहकाच्या नोंदीसोबत जतन करा.',
     pen: 'पेन', eraser: 'खोडरबर', undo: 'मागे घ्या', clearDrawing: 'पुसा', saveDrawing: 'डिझाइन जतन करा', savingDrawing: 'डिझाइन जतन होत आहे…', drawingSaved: 'डिझाइन या ग्राहकासोबत जतन झाले.', drawingError: 'डिझाइन जतन झाले नाही.', drawingColor: 'पेनचा रंग',
     batch: 'अनेक नोंदी एकत्र', batchTitle: 'अनेक ग्राहकांची मापे भरा', batchHint: 'वहीची एक किंवा अधिक पाने निवडा. AI प्रत्येक पानावरील ग्राहकांच्या नोंदी वाचून आपोआप जतन करेल.',
@@ -86,6 +88,25 @@ const labels: Record<Language, Record<MeasurementField, string>> = {
   en: { height: 'Height', blouse_back_length: 'Blouse back length', chest: 'Chest / bust', arm_length: 'Arm length', arm_measurements: 'Arm measurements', pants_length: 'Pants length', top_length: 'Top length', waist: 'Waist', hip: 'Hip', sleeve_length: 'Sleeve length', sleeve_width: 'Sleeve width', front_neck: 'Front neck', back_neck: 'Back neck' },
   mr: { height: 'उंची', blouse_back_length: 'ब्लाउजची मागची लांबी', chest: 'छातीचा घेर', arm_length: 'बाहीची लांबी', arm_measurements: 'बाहीची जोड मापे', pants_length: 'पँटची लांबी', top_length: 'टॉपची लांबी', waist: 'कंबर', hip: 'नितंब', sleeve_length: 'बाहीची लांबी', sleeve_width: 'बाहीची रुंदी', front_neck: 'गळा पुढे', back_neck: 'गळा मागे' },
 };
+
+const categoryFields: Record<string, MeasurementField[]> = {
+  blouse: ['height', 'blouse_back_length', 'chest', 'waist', 'arm_length', 'arm_measurements', 'front_neck', 'back_neck'],
+  dress: ['height', 'top_length', 'chest', 'waist', 'hip', 'sleeve_length', 'sleeve_width', 'arm_length', 'front_neck', 'back_neck'],
+  'nine-vaari': ['height', 'blouse_back_length', 'chest', 'waist', 'hip', 'pants_length', 'arm_length', 'arm_measurements', 'front_neck', 'back_neck'],
+  other: [...measurementFields],
+};
+
+const measurementGroups: Record<string, MeasurementField[]> = {
+  body: ['height', 'chest', 'waist', 'hip'],
+  length: ['blouse_back_length', 'top_length', 'pants_length'],
+  arms: ['arm_length', 'arm_measurements', 'sleeve_length', 'sleeve_width'],
+  neck: ['front_neck', 'back_neck'],
+};
+
+const groupMeasurements = (fields: MeasurementField[]) => Object.entries(measurementGroups).map(([group, keys]) => ({
+  group,
+  fields: keys.filter((field) => fields.includes(field)),
+})).filter(({ fields: keys }) => keys.length > 0);
 
 const normalizeSearch = (value: string) => value
   .normalize('NFKC')
@@ -188,6 +209,7 @@ export default function App() {
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
   const designCanvasRef = useRef<HTMLCanvasElement>(null);
+  const designSectionRef = useRef<HTMLDivElement>(null);
   const drawingRef = useRef(false);
   const drawingHistoryRef = useRef<string[]>([]);
   const clearedDrawingRef = useRef(false);
@@ -220,6 +242,10 @@ export default function App() {
     });
   }, [customers, query]);
   const activeCustomer = customers.find((customer) => customer.id === selected) ?? null;
+  const visibleMeasurements = categoryFields[garmentChoice] ?? [...measurementFields];
+  const groupedMeasurements = groupMeasurements(visibleMeasurements);
+  const selectedCustomerFields = activeCustomer ? categoryFields[garmentCategory(activeCustomer.garment_type)] ?? [...measurementFields] : [...measurementFields];
+  const customerGroupedMeasurements = groupMeasurements(selectedCustomerFields);
 
   useEffect(() => {
     if (!selected || !supabase) { setDesignImage(''); return; }
@@ -516,16 +542,20 @@ export default function App() {
 
           <aside className="detail-panel panel">
             {activeCustomer ? <>
-              <div className="detail-head"><div className="detail-avatar"><UserRound size={23} /></div><div className="detail-title"><h2>{activeCustomer.name}</h2><p>{activeCustomer.phone || activeCustomer.garment_type || t.subtitle}</p></div><button className="icon-button" onClick={() => startEdit(activeCustomer)} aria-label={t.editCustomer} title={t.editCustomer}><Pencil size={17} /></button></div>
+              <div className="detail-head"><div className="detail-avatar"><UserRound size={23} /></div><div className="detail-title"><h2>{activeCustomer.name}</h2><p>{activeCustomer.phone || activeCustomer.garment_type || t.subtitle}</p></div><button className="icon-button" onClick={() => designSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })} aria-label={t.designPad} title={t.designPad}><Brush size={17} /></button><button className="icon-button" onClick={() => startEdit(activeCustomer)} aria-label={t.editCustomer} title={t.editCustomer}><Pencil size={17} /></button></div>
               <div className="detail-scroll">
                 <div className="detail-section"><div className="section-heading"><h3>{t.basic}</h3><span className="small-muted">{t.updated} {formatDate(activeCustomer.updated_at, language)}</span></div>
                   <dl className="info-list">{activeCustomer.measurement_date && <div><dt>{t.date}</dt><dd dir="auto">{formatDate(`${activeCustomer.measurement_date}T12:00:00`, language)}</dd></div>}{activeCustomer.phone && <div><dt>{t.phone}</dt><dd dir="auto">{activeCustomer.phone}</dd></div>}{activeCustomer.garment_type && <div><dt>{t.garment}</dt><dd dir="auto">{activeCustomer.garment_type}</dd></div>}{activeCustomer.notes && <div className="notes-row"><dt>{t.notes}</dt><dd dir="auto">{activeCustomer.notes}</dd></div>}</dl>
                 </div>
                 <div className="detail-section"><div className="section-heading"><h3>{t.measurements}</h3><span className="measurement-pill">{Object.values(activeCustomer.measurements ?? {}).filter(Boolean).length}</span></div>
-                  {Object.values(activeCustomer.measurements ?? {}).some(Boolean) ? <div className="measure-grid">{measurementFields.filter((field) => activeCustomer.measurements?.[field]).map((field) => <div className="measure-cell" key={field}><span>{labels[language][field]}</span><strong dir="auto">{activeCustomer.measurements[field]}</strong></div>)}</div> : <p className="muted-copy">{t.emptyMeasure}</p>}
+                  {Object.values(activeCustomer.measurements ?? {}).some(Boolean) ? customerGroupedMeasurements.map(({ group, fields }) => {
+                    const title = group === 'body' ? t.bodyGroup : group === 'length' ? t.lengthGroup : group === 'arms' ? t.armsGroup : t.neckGroup;
+                    const saved = fields.filter((field) => activeCustomer.measurements?.[field]);
+                    return saved.length ? <div className="measurement-category-group" key={group}><h4>{title}</h4><div className="measure-grid">{saved.map((field) => <div className="measure-cell" key={field}><span>{labels[language][field]}</span><strong dir="auto">{activeCustomer.measurements[field]}</strong></div>)}</div></div> : null;
+                  }) : <p className="muted-copy">{t.emptyMeasure}</p>}
                   {activeCustomer.measurement_notes && <div className="measure-notes"><span>{t.measureNotes}</span><p dir="auto">{activeCustomer.measurement_notes}</p></div>}
                 </div>
-                <div className="detail-section design-section">
+                <div className="detail-section design-section" ref={designSectionRef}>
                   <div className="section-heading"><div><h3>{t.designPad}</h3><p className="design-hint">{t.designPadHint}</p></div><Brush size={17} /></div>
                   <div className="drawing-toolbar">
                     <button className={`draw-tool ${designMode === 'pen' ? 'active' : ''}`} onClick={() => setDesignMode('pen')} title={t.pen}><Pencil size={15} />{t.pen}</button>
@@ -595,8 +625,11 @@ export default function App() {
                 </div>
               </section>
 
-              <section className="form-section"><div className="form-section-title"><span className="number-badge">2</span><div><h3>{t.measurements}</h3><p>{t.unitHint}</p></div></div>
-                <div className="form-grid measurement-input-grid">{measurementFields.map((field) => <label className="field" key={field}><span>{labels[language][field]}{scanResult?.measurements?.[field]?.confidence !== undefined && <em>{formatConfidence(scanResult.measurements[field]?.confidence)}</em>}</span><input value={draft.measurements[field] ?? ''} onChange={(event) => updateMeasurement(field, event.target.value)} placeholder="—" dir="auto" /></label>)}</div>
+              <section className="form-section"><div className="form-section-title"><span className="number-badge">2</span><div><h3>{t.measurements}{garmentChoice && ` · ${garmentChoice === 'blouse' ? t.blouseOption : garmentChoice === 'dress' ? t.dressOption : garmentChoice === 'nine-vaari' ? t.nineVaariOption : t.otherOption}`}</h3><p>{t.unitHint}</p></div></div>
+                {groupedMeasurements.map(({ group, fields }) => {
+                  const title = group === 'body' ? t.bodyGroup : group === 'length' ? t.lengthGroup : group === 'arms' ? t.armsGroup : t.neckGroup;
+                  return <div className="measurement-category-group" key={group}><h4>{title}</h4><div className="form-grid measurement-input-grid">{fields.map((field) => <label className="field" key={field}><span>{labels[language][field]}{scanResult?.measurements?.[field]?.confidence !== undefined && <em>{formatConfidence(scanResult.measurements[field]?.confidence)}</em>}</span><input value={draft.measurements[field] ?? ''} onChange={(event) => updateMeasurement(field, event.target.value)} placeholder="—" dir="auto" /></label>)}</div></div>;
+                })}
                 <label className="field measure-note-field"><span>{t.measureNotes}</span><textarea rows={2} value={draft.measurement_notes} onChange={(event) => setDraft({ ...draft, measurement_notes: event.target.value })} placeholder={t.measureNotesPlaceholder} dir="auto" /></label>
               </section>
               {formError && <p className="inline-error form-error"><AlertCircle size={16} />{formError}</p>}
