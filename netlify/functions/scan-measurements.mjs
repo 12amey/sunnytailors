@@ -66,7 +66,8 @@ Return one JSON object matching the supplied schema. Copy the customer name and 
       headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
       body: JSON.stringify({
         contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: input.image } }, { text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', responseSchema, temperature: 0.1 },
+        // Gemini 3.8 no longer accepts temperature/topP/topK overrides.
+        generationConfig: { responseMimeType: 'application/json', responseSchema },
       }),
     });
   } catch {
