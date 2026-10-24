@@ -1,6 +1,11 @@
 export type Language = 'en' | 'mr';
 
 export const measurementFields = [
+  'height',
+  'blouse_back_length',
+  'chest',
+  'arm_length',
+  'arm_measurements',
   'pants_length',
   'top_length',
   'waist',
@@ -22,6 +27,7 @@ export type Customer = {
   garment_type: string;
   measurements: Measurements;
   measurement_notes: string;
+  measurement_date: string;
   created_at: string;
   updated_at: string;
 };
@@ -35,5 +41,6 @@ export type ScanResult = {
   notes?: ScanField;
   garment_type?: ScanField;
   measurement_notes?: ScanField;
+  measurement_date?: ScanField;
   measurements?: Partial<Record<MeasurementField, ScanField>>;
 };

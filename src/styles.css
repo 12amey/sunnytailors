@@ -124,8 +124,9 @@ input, textarea { color: var(--ink); }
 
 .modal-backdrop { position: fixed; z-index: 5; inset: 0; display: flex; align-items: center; justify-content: center; padding: 22px; background: #1a173052; backdrop-filter: blur(3px); }
 .customer-modal { width: min(760px, 100%); max-height: min(92vh, 900px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e9e6ef; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px #1e173840; animation: modal-in .18s ease-out; }
+.customer-modal > form { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; }
 .batch-modal { width: min(620px, 100%); max-height: min(92vh, 820px); display: flex; flex-direction: column; overflow: hidden; border: 1px solid #e9e6ef; border-radius: 16px; background: #fff; box-shadow: 0 24px 70px #1e173840; animation: modal-in .18s ease-out; }
-.batch-body { overflow: auto; padding: 20px 23px; }
+.batch-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 20px 23px; -webkit-overflow-scrolling: touch; }
 .batch-hint { margin: 0 0 16px; color: #777387; font-size: 12px; line-height: 1.6; }
 .batch-drop { min-height: 155px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px; border: 1px dashed #bdb2e9; border-radius: 13px; color: #7257da; background: #fbfaff; cursor: pointer; text-align: center; }
 .batch-drop:hover { border-color: #7652ee; background: #f6f2ff; }
@@ -144,7 +145,7 @@ input, textarea { color: var(--ink); }
 .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 18px 23px; border-bottom: 1px solid #f0eef4; }
 .modal-head .eyebrow { margin-bottom: 4px; font-size: 9px; }
 .modal-head h2 { margin: 0; font-size: 19px; letter-spacing: -.3px; }
-.modal-body { overflow: auto; padding: 18px 23px 22px; }
+.modal-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 23px 22px; -webkit-overflow-scrolling: touch; }
 .scan-card { margin-bottom: 22px; padding: 16px; border: 1px solid #e9e4fb; border-radius: 12px; background: linear-gradient(130deg, #fbfaff 0%, #f7f4ff 100%); }
 .scan-card-head { align-items: flex-start; gap: 10px; }
 .scan-symbol { width: 32px; height: 32px; display: grid; place-items: center; flex: 0 0 32px; border-radius: 10px; color: #7056dc; background: #ebe5ff; }

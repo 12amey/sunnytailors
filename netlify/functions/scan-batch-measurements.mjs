@@ -18,13 +18,14 @@ const responseSchema = {
           notes: scanField,
           garment_type: scanField,
           measurement_notes: scanField,
+          measurement_date: scanField,
           measurements: {
             type: 'OBJECT',
             properties: Object.fromEntries(fieldNames.map((field) => [field, scanField])),
             required: fieldNames,
           },
         },
-        required: ['name', 'phone', 'notes', 'garment_type', 'measurement_notes', 'measurements'],
+        required: ['name', 'phone', 'notes', 'garment_type', 'measurement_notes', 'measurement_date', 'measurements'],
       },
     },
   },
@@ -61,7 +62,7 @@ export default async (request) => {
     ? 'Write Marathi handwriting in Marathi script. Preserve the exact wording and numerals.'
     : 'Preserve the script used in the notebook. Do not translate any value.';
   const prompt = `Read this tailor's measurement notebook page. It can contain multiple separate customer entries and may be handwritten Marathi or rotated. ${languageInstruction}
-Return one JSON object whose customers array has one object for each clearly separate customer entry that contains at least one clearly readable measurement. Do not merge measurements across customer sections. Copy each name and phone exactly when legible. A name can be empty when unreadable; never invent it. Map only clearly matching measurements to these fixed keys: pants_length, top_length, waist, hip, sleeve_length, sleeve_width, front_neck, back_neck. Keep values exactly as written, including Marathi digits and units. Do not convert units, guess, or infer. For each missing or unclear field return an empty value and confidence 0. Confidence is 0 to 1 for legibility. Use notes for other explicit customer instructions, garment_type for an explicitly written garment, and measurement_notes for units or context. Ignore printed page labels, dates, and unrelated marks. If no measurement entry is readable, return an empty customers array.`;
+Return one JSON object whose customers array has one object for each clearly separate customer entry that contains at least one clearly readable measurement. Do not merge measurements across customer sections. Copy each name and phone exactly when legible. A name can be empty when unreadable; never invent it. Extract each entry's date as YYYY-MM-DD when clearly readable. Map only clearly matching measurements to these fixed keys: height, blouse_back_length, chest, waist, arm_length, arm_measurements, pants_length, top_length, hip, sleeve_length, sleeve_width, front_neck, back_neck. Tailor-specific Marathi clues: उंची means height; पाठीची लांबी/ब्लाउज मागची लांबी means blouse_back_length; छाती or छातीचा घेर means chest; कंबर means waist; बाहीची लांबी means arm_length; paired बाही measurements or a written range such as ११-१० belongs in arm_measurements and should be preserved as one value; पुढचा गळा/गळा पुढे means front_neck. Keep values exactly as written, including Marathi digits and units. Do not convert units, guess, or infer. For each missing or unclear field return an empty value and confidence 0. Confidence is 0 to 1 for legibility. Use notes for other explicit customer instructions, garment_type for an explicitly written garment, and measurement_notes for units or context. Ignore printed page labels and unrelated marks. If no measurement entry is readable, return an empty customers array.`;
 
   const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
   let upstream;

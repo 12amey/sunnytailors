@@ -1,6 +1,6 @@
 # Sunny Tailor
 
-Responsive customer and measurement book with English/Marathi interface, Supabase persistence, and optional Marathi handwriting extraction with Gemini.
+Responsive customer and measurement book with English/Marathi interface, Supabase persistence, and optional Marathi handwriting extraction with Gemini. Measurement fields include height, blouse back length, chest, waist, arm length, paired arm measurements, and front/back neck; notebook dates are stored with the record.
 
 ## Supabase setup
 

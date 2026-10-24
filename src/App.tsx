@@ -8,7 +8,7 @@ import { isSupabaseConfigured, supabase } from './lib/supabase';
 import { measurementFields, type Customer, type CustomerDraft, type Language, type MeasurementField, type ScanResult } from './types';
 
 const emptyDraft = (): CustomerDraft => ({
-  name: '', phone: '', notes: '', garment_type: '', measurements: {}, measurement_notes: '',
+  name: '', phone: '', notes: '', garment_type: '', measurements: {}, measurement_notes: '', measurement_date: '',
 });
 
 const copy = {
@@ -19,6 +19,7 @@ const copy = {
     noResults: 'No matching customers', noResultsHelp: 'Try another name, phone number, or measurement.',
     newCustomer: 'New customer', editCustomer: 'Edit customer', basic: 'Customer details', measurements: 'Measurements',
     name: 'Name', phone: 'Phone number', garment: 'Garment type', notes: 'Customer notes',
+    date: 'Measurement date',
     measureNotes: 'Measurement notes', namePlaceholder: 'Customer name', phonePlaceholder: 'Phone number',
     garmentPlaceholder: 'e.g. Blouse, dress, trousers', notesPlaceholder: 'Style preferences, fitting notes…',
     measureNotesPlaceholder: 'Extra notes about these measurements…', save: 'Save customer', saving: 'Saving…',
@@ -37,6 +38,7 @@ const copy = {
     unitHint: 'Enter measurements as written in the notebook. Marathi text and digits are supported.',
     selectPhoto: 'Choose a measurement photo', close: 'Close form', noMeasurements: 'Add values as written in the notebook.',
     cameraHint: 'A clear, upright photo with the whole page visible gives the best reading.',
+    datePlaceholder: 'Choose date',
     batch: 'Bulk import', batchTitle: 'Import multiple customers', batchHint: 'Choose one or more notebook photos. AI finds each customer entry on every page and saves the results automatically.',
     batchChoose: 'Choose photos', batchRun: 'Scan and save all', batchRunning: 'Scanning and saving…', batchPrivacy: 'Photos are sent to Google Gemini for reading and are not stored. Extracted customer details are saved directly to this public customer book.',
     batchDone: 'Import finished', batchProgress: 'Photos processed', batchError: 'Could not import this photo', batchEmpty: 'No customer entries with measurements were found in this photo.', batchNameFallback: 'Name not readable', batchSize: 'Each photo must be smaller than 4 MB.',
@@ -48,6 +50,7 @@ const copy = {
     noResults: 'जुळणारे ग्राहक सापडले नाहीत', noResultsHelp: 'दुसरे नाव, फोन नंबर किंवा माप शोधा.',
     newCustomer: 'नवीन ग्राहक', editCustomer: 'ग्राहकाची नोंद बदला', basic: 'ग्राहकाची माहिती', measurements: 'मापे',
     name: 'नाव', phone: 'फोन नंबर', garment: 'कपड्याचा प्रकार', notes: 'ग्राहकाबद्दल नोंद',
+    date: 'मापाची तारीख',
     measureNotes: 'मापांबद्दल नोंद', namePlaceholder: 'ग्राहकाचे नाव', phonePlaceholder: 'फोन नंबर',
     garmentPlaceholder: 'उदा. ब्लाउज, ड्रेस, पँट', notesPlaceholder: 'आवड, फिटिंगविषयी नोंद…',
     measureNotesPlaceholder: 'या मापांबद्दल इतर नोंद…', save: 'ग्राहक जतन करा', saving: 'जतन होत आहे…',
@@ -66,6 +69,7 @@ const copy = {
     unitHint: 'वहीत लिहिलेली मापे तशीच भरा. मराठी मजकूर आणि अंक चालतात.',
     selectPhoto: 'मापांच्या चिठ्ठीचा फोटो निवडा', close: 'फॉर्म बंद करा', noMeasurements: 'वहीत लिहिल्याप्रमाणे मापे भरा.',
     cameraHint: 'पूर्ण पान दिसेल असा सरळ आणि स्पष्ट फोटो काढल्यास वाचन चांगले होते.',
+    datePlaceholder: 'तारीख निवडा',
     batch: 'अनेक नोंदी एकत्र', batchTitle: 'अनेक ग्राहकांची मापे भरा', batchHint: 'वहीची एक किंवा अधिक पाने निवडा. AI प्रत्येक पानावरील ग्राहकांच्या नोंदी वाचून आपोआप जतन करेल.',
     batchChoose: 'फोटो निवडा', batchRun: 'सर्व वाचून जतन करा', batchRunning: 'वाचून जतन होत आहे…', batchPrivacy: 'फोटो वाचण्यासाठी Google Gemini कडे पाठवले जातात आणि जतन होत नाहीत. वाचलेली ग्राहक माहिती या सार्वजनिक वहीत थेट जतन होते.',
     batchDone: 'नोंदी जतन झाल्या', batchProgress: 'पूर्ण केलेले फोटो', batchError: 'हा फोटो जतन करता आला नाही', batchEmpty: 'या फोटोमध्ये मापांसह ग्राहक नोंदी सापडल्या नाहीत.', batchNameFallback: 'नाव वाचता आले नाही', batchSize: 'प्रत्येक फोटो ४ MB पेक्षा लहान हवा.',
@@ -73,8 +77,8 @@ const copy = {
 } satisfies Record<Language, Record<string, string>>;
 
 const labels: Record<Language, Record<MeasurementField, string>> = {
-  en: { pants_length: 'Pants length', top_length: 'Top length', waist: 'Waist', hip: 'Hip', sleeve_length: 'Sleeve length', sleeve_width: 'Sleeve width', front_neck: 'Front neck', back_neck: 'Back neck' },
-  mr: { pants_length: 'पँटची लांबी', top_length: 'टॉपची लांबी', waist: 'कंबर', hip: 'नितंब', sleeve_length: 'बाहीची लांबी', sleeve_width: 'बाहीची रुंदी', front_neck: 'गळा पुढे', back_neck: 'गळा मागे' },
+  en: { height: 'Height', blouse_back_length: 'Blouse back length', chest: 'Chest / bust', arm_length: 'Arm length', arm_measurements: 'Arm measurements', pants_length: 'Pants length', top_length: 'Top length', waist: 'Waist', hip: 'Hip', sleeve_length: 'Sleeve length', sleeve_width: 'Sleeve width', front_neck: 'Front neck', back_neck: 'Back neck' },
+  mr: { height: 'उंची', blouse_back_length: 'ब्लाउजची मागची लांबी', chest: 'छातीचा घेर', arm_length: 'बाहीची लांबी', arm_measurements: 'बाहीची जोड मापे', pants_length: 'पँटची लांबी', top_length: 'टॉपची लांबी', waist: 'कंबर', hip: 'नितंब', sleeve_length: 'बाहीची लांबी', sleeve_width: 'बाहीची रुंदी', front_neck: 'गळा पुढे', back_neck: 'गळा मागे' },
 };
 
 const normalizeSearch = (value: string) => value
@@ -172,7 +176,7 @@ export default function App() {
     const needle = normalizeSearch(query.trim());
     if (!needle) return customers;
     return customers.filter((customer) => {
-      const values = [customer.name, customer.phone, customer.notes, customer.garment_type, customer.measurement_notes];
+      const values = [customer.name, customer.phone, customer.notes, customer.garment_type, customer.measurement_notes, customer.measurement_date];
       for (const [key, value] of Object.entries(customer.measurements ?? {})) {
         values.push(value ?? '', labels.en[key as MeasurementField] ?? '', labels.mr[key as MeasurementField] ?? '');
       }
@@ -188,7 +192,7 @@ export default function App() {
 
   const startEdit = (customer: Customer) => {
     setEditingId(customer.id);
-    setDraft({ name: customer.name, phone: customer.phone ?? '', notes: customer.notes ?? '', garment_type: customer.garment_type ?? '', measurements: customer.measurements ?? {}, measurement_notes: customer.measurement_notes ?? '' });
+    setDraft({ name: customer.name, phone: customer.phone ?? '', notes: customer.notes ?? '', garment_type: customer.garment_type ?? '', measurements: customer.measurements ?? {}, measurement_notes: customer.measurement_notes ?? '', measurement_date: customer.measurement_date ?? '' });
     setFormError(''); setScanMessage(''); setScanError(''); setScanResult(null); setPhoto(null); setRotation(0); setFormOpen(true);
   };
 
@@ -224,6 +228,7 @@ export default function App() {
         notes: result.notes?.value || current.notes,
         garment_type: result.garment_type?.value || current.garment_type,
         measurement_notes: result.measurement_notes?.value || current.measurement_notes,
+        measurement_date: result.measurement_date?.value || current.measurement_date,
         measurements: Object.fromEntries(measurementFields.map((field) => [field, result.measurements?.[field]?.value || current.measurements[field] || ''])) as CustomerDraft['measurements'],
       }));
       setScanMessage(t.scanApplied);
@@ -272,6 +277,7 @@ export default function App() {
                 phone: entry.phone?.value?.trim() || '', notes: entry.notes?.value?.trim() || '',
                 garment_type: entry.garment_type?.value?.trim() || '', measurements,
                 measurement_notes: entry.measurement_notes?.value?.trim() || '',
+                measurement_date: entry.measurement_date?.value?.trim() || '',
                 import_key: `${imageKey}:${entryIndex}`, updated_at: new Date().toISOString(),
               }];
             });
@@ -375,7 +381,7 @@ export default function App() {
               <div className="detail-head"><div className="detail-avatar"><UserRound size={23} /></div><div className="detail-title"><h2>{activeCustomer.name}</h2><p>{activeCustomer.phone || activeCustomer.garment_type || t.subtitle}</p></div><button className="icon-button" onClick={() => startEdit(activeCustomer)} aria-label={t.editCustomer} title={t.editCustomer}><Pencil size={17} /></button></div>
               <div className="detail-scroll">
                 <div className="detail-section"><div className="section-heading"><h3>{t.basic}</h3><span className="small-muted">{t.updated} {formatDate(activeCustomer.updated_at, language)}</span></div>
-                  <dl className="info-list">{activeCustomer.phone && <div><dt>{t.phone}</dt><dd dir="auto">{activeCustomer.phone}</dd></div>}{activeCustomer.garment_type && <div><dt>{t.garment}</dt><dd dir="auto">{activeCustomer.garment_type}</dd></div>}{activeCustomer.notes && <div className="notes-row"><dt>{t.notes}</dt><dd dir="auto">{activeCustomer.notes}</dd></div>}</dl>
+                  <dl className="info-list">{activeCustomer.measurement_date && <div><dt>{t.date}</dt><dd dir="auto">{formatDate(`${activeCustomer.measurement_date}T12:00:00`, language)}</dd></div>}{activeCustomer.phone && <div><dt>{t.phone}</dt><dd dir="auto">{activeCustomer.phone}</dd></div>}{activeCustomer.garment_type && <div><dt>{t.garment}</dt><dd dir="auto">{activeCustomer.garment_type}</dd></div>}{activeCustomer.notes && <div className="notes-row"><dt>{t.notes}</dt><dd dir="auto">{activeCustomer.notes}</dd></div>}</dl>
                 </div>
                 <div className="detail-section"><div className="section-heading"><h3>{t.measurements}</h3><span className="measurement-pill">{Object.values(activeCustomer.measurements ?? {}).filter(Boolean).length}</span></div>
                   {Object.values(activeCustomer.measurements ?? {}).some(Boolean) ? <div className="measure-grid">{measurementFields.filter((field) => activeCustomer.measurements?.[field]).map((field) => <div className="measure-cell" key={field}><span>{labels[language][field]}</span><strong dir="auto">{activeCustomer.measurements[field]}</strong></div>)}</div> : <p className="muted-copy">{t.emptyMeasure}</p>}
@@ -423,6 +429,7 @@ export default function App() {
 
               <section className="form-section"><div className="form-section-title"><span className="number-badge">1</span><h3>{t.basic}</h3></div>
                 <div className="form-grid"><label className="field full-field"><span>{t.name} <b>*</b></span><input autoFocus required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder={t.namePlaceholder} dir="auto" /></label>
+                  <label className="field"><span>{t.date}</span><input type="date" value={draft.measurement_date} onChange={(event) => setDraft({ ...draft, measurement_date: event.target.value })} aria-label={t.datePlaceholder} /></label>
                   <label className="field"><span>{t.phone}</span><input type="tel" inputMode="tel" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} placeholder={t.phonePlaceholder} dir="auto" /></label>
                   <label className="field"><span>{t.garment}</span><input value={draft.garment_type} onChange={(event) => setDraft({ ...draft, garment_type: event.target.value })} placeholder={t.garmentPlaceholder} dir="auto" /></label>
                   <label className="field full-field"><span>{t.notes}</span><textarea rows={2} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder={t.notesPlaceholder} dir="auto" /></label>
