@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react';
 import {
-  AlertCircle, Brush, Camera, Check, ChevronRight, CircleHelp, Clock3, Eraser, FileStack,
+  AlertCircle, Brush, CalendarDays, Camera, Check, ChevronLeft, ChevronRight, CircleHelp, Clock3, Eraser, FileStack,
   Languages, LoaderCircle, Pencil, Plus, RotateCcw, RotateCw, Save, Search, Scissors,
   Sparkles, Trash2, UserRound, Users, X,
 } from 'lucide-react';
@@ -10,6 +10,7 @@ import { measurementFields, type Customer, type CustomerDraft, type CustomerEven
 const emptyDraft = (): CustomerDraft => ({
   name: '', phone: '', notes: '', garment_type: '', measurements: {}, measurement_notes: '', measurement_date: '', design_image: '',
 });
+const localDateString = (date = new Date()) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
 const copy = {
   en: {
@@ -48,7 +49,7 @@ const copy = {
     batchDone: 'Import finished', batchProgress: 'Photos processed', batchError: 'Could not import this photo', batchEmpty: 'No customer entries with measurements were found in this photo.', batchNameFallback: 'Name not readable', batchSize: 'Each photo must be smaller than 4 MB.',
     history: 'Customer history', noHistory: 'No activity recorded yet.', payment: 'Add payment', paymentTitle: 'Record a payment', amount: 'Amount', paymentDate: 'Payment date', paymentMethod: 'Method', paymentNote: 'Note (optional)', cash: 'Cash', upi: 'UPI', otherMethod: 'Other', savePayment: 'Save payment', paymentSaved: 'Payment recorded.', paymentError: 'Could not record payment. Run the latest Supabase schema first.', totalPaid: 'Total paid', measurementAdded: 'Measurements added', measurementUpdated: 'Measurements updated', designSavedEvent: 'Design sketch saved', paymentEvent: 'Payment received', amountRequired: 'Enter a valid amount greater than zero.',
     sariGroup: '9 vaari drape', topGroup: 'Top', pantsGroup: 'Pants',
-    addBill: 'New bill / order', billTitle: 'New tailoring bill', linkedCustomer: 'Find customer', billGarment: 'Garment / work', billDescription: 'Work description', billAmount: 'Total bill (₹)', advanceAmount: 'Advance received (₹)', balanceDue: 'Balance due', remainingAfterAdvance: 'Remaining after advance', advanceMethod: 'Advance method', dueDate: 'Delivery date', orderNotes: 'Order notes', createBill: 'Save bill', selectCustomer: 'Search and select an existing customer', chooseCustomer: 'Select customer', noCustomerMatch: 'No matching customer found.', billSaved: 'Bill saved', billError: 'Could not save this bill. Run the latest Supabase schema and try again.', bills: 'Bills and tailoring orders', noBills: 'No bills yet. Add a bill to track advance and balance.', order: 'Order', status: 'Status', orderNew: 'New', orderInProgress: 'In progress', orderReady: 'Ready', orderDelivered: 'Delivered', orderCancelled: 'Cancelled', totalBill: 'Total', paidSoFar: 'Paid', due: 'Due', remainingPayment: 'Add payment', editBill: 'Edit bill', paymentForBill: 'Attach to bill', noOrderLink: 'Unassigned payment', orderPayment: 'Order payment', advanceStage: 'Advance', partPaymentStage: 'Part payment', finalPaymentStage: 'Final balance', attachedMeasurements: 'Current measurements will be saved with this bill.', sketchDuringEntry: 'Design scratchpad', createOrEditSketchHint: 'Draw the design now; it will save with this customer. You can edit it later.', sketchEdited: 'Sketch changes are saved with the customer.', paymentExceedsDue: 'Payment is more than this bill’s remaining balance.',
+    addBill: 'New bill / order', billTitle: 'New tailoring bill', linkedCustomer: 'Find customer', billGarment: 'Garment / work', billDescription: 'Work description', billAmount: 'Total bill (₹)', advanceAmount: 'Advance received (₹)', balanceDue: 'Balance due', remainingAfterAdvance: 'Remaining after advance', advanceMethod: 'Advance method', dueDate: 'Delivery date', calendarNote: 'This delivery date will appear on the calendar.', orderNotes: 'Order notes', createBill: 'Save bill', selectCustomer: 'Search and select an existing customer', chooseCustomer: 'Select customer', noCustomerMatch: 'No matching customer found.', billSaved: 'Bill saved', billError: 'Could not save this bill. Run the latest Supabase schema and try again.', bills: 'Bills and tailoring orders', noBills: 'No bills yet. Add a bill to track advance and balance.', order: 'Order', status: 'Status', orderNew: 'New', orderInProgress: 'In progress', orderReady: 'Ready', orderDelivered: 'Delivered', orderCancelled: 'Cancelled', totalBill: 'Total', paidSoFar: 'Paid', due: 'Due', remainingPayment: 'Add payment', editBill: 'Edit bill', paymentForBill: 'Attach to bill', noOrderLink: 'Unassigned payment', orderPayment: 'Order payment', advanceStage: 'Advance', partPaymentStage: 'Part payment', finalPaymentStage: 'Final balance', attachedMeasurements: 'Current measurements will be saved with this bill.', sketchDuringEntry: 'Design scratchpad', createOrEditSketchHint: 'Draw the design now; it will save with this customer. You can edit it later.', sketchEdited: 'Sketch changes are saved with the customer.', paymentExceedsDue: 'Payment is more than this bill’s remaining balance.', calendar: 'Calendar', todayWork: "Today's work", noWork: 'No deliveries scheduled for this date.', markComplete: 'Mark complete', postpone: 'Postpone', postponedTo: 'New delivery date', saveDate: 'Reschedule', monthPrev: 'Previous month', monthNext: 'Next month', backToRecords: 'Customer records',
   },
   mr: {
     subtitle: 'ग्राहक वही', search: 'नाव, फोन किंवा माप शोधा…', add: 'ग्राहक जोडा',
@@ -86,7 +87,7 @@ const copy = {
     batchDone: 'नोंदी जतन झाल्या', batchProgress: 'पूर्ण केलेले फोटो', batchError: 'हा फोटो जतन करता आला नाही', batchEmpty: 'या फोटोमध्ये मापांसह ग्राहक नोंदी सापडल्या नाहीत.', batchNameFallback: 'नाव वाचता आले नाही', batchSize: 'प्रत्येक फोटो ४ MB पेक्षा लहान हवा.',
     history: 'ग्राहकाचा इतिहास', noHistory: 'अजून कोणतीही नोंद नाही.', payment: 'पैसे नोंदवा', paymentTitle: 'पेमेंट नोंदवा', amount: 'रक्कम', paymentDate: 'पेमेंटची तारीख', paymentMethod: 'पद्धत', paymentNote: 'नोंद (ऐच्छिक)', cash: 'रोख', upi: 'UPI', otherMethod: 'इतर', savePayment: 'पेमेंट जतन करा', paymentSaved: 'पेमेंट नोंदवले.', paymentError: 'पेमेंट नोंदवता आले नाही. आधी नवीनतम Supabase schema चालवा.', totalPaid: 'एकूण मिळाले', measurementAdded: 'मापे जोडली', measurementUpdated: 'मापे बदलली', designSavedEvent: 'डिझाइन जतन केले', paymentEvent: 'पेमेंट मिळाले', amountRequired: 'शून्यापेक्षा जास्त योग्य रक्कम लिहा.',
     sariGroup: '९ वारी नेसणी', topGroup: 'टॉप', pantsGroup: 'पँट',
-    addBill: 'नवीन बिल / ऑर्डर', billTitle: 'नवीन शिलाई बिल', linkedCustomer: 'ग्राहक शोधा', billGarment: 'कपडा / काम', billDescription: 'कामाचे वर्णन', billAmount: 'एकूण बिल (₹)', advanceAmount: 'आगाऊ मिळाले (₹)', balanceDue: 'बाकी रक्कम', remainingAfterAdvance: 'आगाऊनंतर बाकी', advanceMethod: 'आगाऊची पद्धत', dueDate: 'देण्याची तारीख', orderNotes: 'ऑर्डरची नोंद', createBill: 'बिल जतन करा', selectCustomer: 'जुना ग्राहक शोधून निवडा', chooseCustomer: 'ग्राहक निवडा', noCustomerMatch: 'जुळणारा ग्राहक सापडला नाही.', billSaved: 'बिल जतन झाले', billError: 'बिल जतन झाले नाही. नवीनतम Supabase schema चालवून पुन्हा प्रयत्न करा.', bills: 'बिले आणि शिलाई ऑर्डर', noBills: 'अजून बिल नाही. आगाऊ आणि बाकी रक्कम पाहण्यासाठी बिल जोडा.', order: 'ऑर्डर', status: 'स्थिती', orderNew: 'नवीन', orderInProgress: 'काम सुरू', orderReady: 'तयार', orderDelivered: 'दिलेली', orderCancelled: 'रद्द', totalBill: 'एकूण', paidSoFar: 'मिळाले', due: 'बाकी', remainingPayment: 'पेमेंट जोडा', editBill: 'बिल बदला', paymentForBill: 'बिलाशी जोडा', noOrderLink: 'बिलाशी जोडलेले नाही', orderPayment: 'ऑर्डर पेमेंट', advanceStage: 'आगाऊ', partPaymentStage: 'अंशतः पेमेंट', finalPaymentStage: 'अंतिम बाकी', attachedMeasurements: 'सध्याची मापे या बिलासोबत जतन होतील.', sketchDuringEntry: 'डिझाइन स्क्रॅचपॅड', createOrEditSketchHint: 'आत्ताच डिझाइन काढा; ते ग्राहकासोबत जतन होईल. नंतर पुन्हा बदलता येईल.', sketchEdited: 'डिझाइन ग्राहकासोबत जतन झाले.', paymentExceedsDue: 'पेमेंट बिलाच्या बाकी रकमेपेक्षा जास्त आहे.',
+    addBill: 'नवीन बिल / ऑर्डर', billTitle: 'नवीन शिलाई बिल', linkedCustomer: 'ग्राहक शोधा', billGarment: 'कपडा / काम', billDescription: 'कामाचे वर्णन', billAmount: 'एकूण बिल (₹)', advanceAmount: 'आगाऊ मिळाले (₹)', balanceDue: 'बाकी रक्कम', remainingAfterAdvance: 'आगाऊनंतर बाकी', advanceMethod: 'आगाऊची पद्धत', dueDate: 'देण्याची तारीख', calendarNote: 'ही तारीख दिनदर्शिकेत दिसेल.', orderNotes: 'ऑर्डरची नोंद', createBill: 'बिल जतन करा', selectCustomer: 'जुना ग्राहक शोधून निवडा', chooseCustomer: 'ग्राहक निवडा', noCustomerMatch: 'जुळणारा ग्राहक सापडला नाही.', billSaved: 'बिल जतन झाले', billError: 'बिल जतन झाले नाही. नवीनतम Supabase schema चालवून पुन्हा प्रयत्न करा.', bills: 'बिले आणि शिलाई ऑर्डर', noBills: 'अजून बिल नाही. आगाऊ आणि बाकी रक्कम पाहण्यासाठी बिल जोडा.', order: 'ऑर्डर', status: 'स्थिती', orderNew: 'नवीन', orderInProgress: 'काम सुरू', orderReady: 'तयार', orderDelivered: 'दिलेली', orderCancelled: 'रद्द', totalBill: 'एकूण', paidSoFar: 'मिळाले', due: 'बाकी', remainingPayment: 'पेमेंट जोडा', editBill: 'बिल बदला', paymentForBill: 'बिलाशी जोडा', noOrderLink: 'बिलाशी जोडलेले नाही', orderPayment: 'ऑर्डर पेमेंट', advanceStage: 'आगाऊ', partPaymentStage: 'अंशतः पेमेंट', finalPaymentStage: 'अंतिम बाकी', attachedMeasurements: 'सध्याची मापे या बिलासोबत जतन होतील.', sketchDuringEntry: 'डिझाइन स्क्रॅचपॅड', createOrEditSketchHint: 'आत्ताच डिझाइन काढा; ते ग्राहकासोबत जतन होईल. नंतर पुन्हा बदलता येईल.', sketchEdited: 'डिझाइन ग्राहकासोबत जतन झाले.', paymentExceedsDue: 'पेमेंट बिलाच्या बाकी रकमेपेक्षा जास्त आहे.', calendar: 'दिनदर्शिका', todayWork: 'आजचे काम', noWork: 'या तारखेला डिलिव्हरी नाही.', markComplete: 'पूर्ण झाले', postpone: 'पुढे ढकला', postponedTo: 'नवीन डिलिव्हरी तारीख', saveDate: 'तारीख बदला', monthPrev: 'मागील महिना', monthNext: 'पुढील महिना', backToRecords: 'ग्राहक नोंदी',
   },
 } satisfies Record<Language, Record<string, string>>;
 
@@ -94,6 +95,20 @@ const labels: Record<Language, Record<MeasurementField, string>> = {
   en: { height: 'Height', blouse_back_length: 'Blouse back length', chest: 'Chest / bust', arm_length: 'Arm length', arm_measurements: 'Arm measurements', pants_length: 'Pants length', top_length: 'Top length', waist: 'Waist', hip: 'Hip', sleeve_length: 'Sleeve length', sleeve_width: 'Sleeve width', front_neck: 'Front neck', back_neck: 'Back neck', top_chest: 'Top chest / bust', top_waist: 'Top waist', top_hip: 'Top hip', top_sleeve_length: 'Top sleeve length', top_sleeve_width: 'Top sleeve width', top_arm_length: 'Top arm length', top_front_neck: 'Top front neck', top_back_neck: 'Top back neck', pants_waist: 'Pants waist', pants_hip: 'Pants hip', pants_thigh: 'Pants thigh', pants_crotch: 'Pants crotch / rise', pants_bottom: 'Pants bottom width', nine_vaari_front_length: 'Front fall length', nine_vaari_back_length: 'Back fall length', nine_vaari_crotch_length: 'Crotch / dhoti length', nine_vaari_waist: 'Waist', nine_vaari_hip: 'Hip', nine_vaari_pleats: 'Pleat count / width', nine_vaari_pallu: 'Pallu length' },
   mr: { height: 'उंची', blouse_back_length: 'ब्लाउजची मागची लांबी', chest: 'छातीचा घेर', arm_length: 'बाहीची लांबी', arm_measurements: 'बाहीची जोड मापे', pants_length: 'पँटची लांबी', top_length: 'टॉपची लांबी', waist: 'कंबर', hip: 'नितंब', sleeve_length: 'बाहीची लांबी', sleeve_width: 'बाहीची रुंदी', front_neck: 'गळा पुढे', back_neck: 'गळा मागे', top_chest: 'टॉपचा छातीचा घेर', top_waist: 'टॉपची कंबर', top_hip: 'टॉपचा नितंब घेर', top_sleeve_length: 'टॉपच्या बाहीची लांबी', top_sleeve_width: 'टॉपच्या बाहीची रुंदी', top_arm_length: 'टॉपच्या बाहीची लांबी', top_front_neck: 'टॉपचा पुढचा गळा', top_back_neck: 'टॉपचा मागचा गळा', pants_waist: 'पँटची कंबर', pants_hip: 'पँटचा नितंब घेर', pants_thigh: 'मांडीचा घेर', pants_crotch: 'पँटची बैठक / उंची', pants_bottom: 'पँटच्या बॉटमची रुंदी', nine_vaari_front_length: 'पुढची लांबी', nine_vaari_back_length: 'मागची लांबी', nine_vaari_crotch_length: 'धोतर घडीची लांबी', nine_vaari_waist: 'कंबर', nine_vaari_hip: 'नितंब', nine_vaari_pleats: 'निऱ्यांची संख्या / रुंदी', nine_vaari_pallu: 'पदराची लांबी' },
 };
+
+function CalendarOrderCard({ order, customerName, t, language, onComplete, onReschedule }: {
+  order: CustomerOrder; customerName: string; t: typeof copy.en; language: Language;
+  onComplete: () => void; onReschedule: (date: string) => void;
+}) {
+  const [date, setDate] = useState(order.due_date || localDateString());
+  const status = order.status === 'in_progress' ? t.orderInProgress : order.status === 'ready' ? t.orderReady : order.status === 'delivered' ? t.orderDelivered : order.status === 'cancelled' ? t.orderCancelled : t.orderNew;
+  return <article className="calendar-order-card">
+    <div className="calendar-order-top"><strong>{customerName || t.linkedCustomer}</strong><span>{order.order_number}</span></div>
+    <p>{order.garment_type}{order.description ? ` · ${order.description}` : ''}</p>
+    <div className="calendar-order-meta"><span className={`order-status ${order.status}`}>{status}</span><time>{formatDate(`${order.due_date}T12:00:00`, language)}</time></div>
+    {order.status !== 'delivered' && order.status !== 'cancelled' && <div className="calendar-order-actions"><button className="complete-button" onClick={onComplete}><Check size={14} />{t.markComplete}</button><label className="calendar-reschedule"><span>{t.postponedTo}</span><input type="date" value={date} min={localDateString()} onChange={(event) => setDate(event.target.value)} /><button className="text-button" disabled={!date || date === order.due_date} onClick={() => onReschedule(date)}>{t.saveDate}</button></label></div>}
+  </article>;
+}
 
 const categoryFields: Record<string, MeasurementField[]> = {
   blouse: ['height', 'blouse_back_length', 'chest', 'waist', 'arm_length', 'arm_measurements', 'front_neck', 'back_neck'],
@@ -223,6 +238,11 @@ export default function App() {
   const [designColor, setDesignColor] = useState('#27253a');
   const [events, setEvents] = useState<CustomerEvent[]>([]);
   const [orders, setOrders] = useState<CustomerOrder[]>([]);
+  const [calendarOrders, setCalendarOrders] = useState<CustomerOrder[]>([]);
+  const [calendarView, setCalendarView] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [calendarDate, setCalendarDate] = useState(() => localDateString());
+  const [calendarError, setCalendarError] = useState('');
   const [orderPayments, setOrderPayments] = useState<CustomerOrderPayment[]>([]);
   const [historyError, setHistoryError] = useState('');
   const [paymentOpen, setPaymentOpen] = useState(false);
@@ -323,6 +343,22 @@ export default function App() {
     if (paymentLoadError) { setHistoryError(t.billError); setOrderPayments([]); }
     else setOrderPayments((payments ?? []) as CustomerOrderPayment[]);
   }, [t.billError]);
+
+  const loadCalendarOrders = useCallback(async () => {
+    if (!supabase) return;
+    const { data, error } = await supabase.from('customer_orders').select('*').not('due_date', 'is', null).order('due_date', { ascending: true });
+    if (!error) setCalendarOrders((data ?? []) as CustomerOrder[]);
+    else setCalendarError(error.message || t.billError);
+  }, [t.billError]);
+  useEffect(() => { void loadCalendarOrders(); }, [loadCalendarOrders]);
+
+  const updateCalendarOrder = async (order: CustomerOrder, updates: Partial<Pick<CustomerOrder, 'status' | 'due_date'>>) => {
+    if (!supabase) return;
+    const result = await supabase.from('customer_orders').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', order.id).select().single();
+    if (result.error) { setCalendarError(result.error.message || t.billError); return; }
+    setCalendarError('');
+    await Promise.all([loadCalendarOrders(), loadCustomerOrders(order.customer_id)]);
+  };
 
   useEffect(() => {
     setEvents([]); setOrders([]); setOrderPayments([]); setHistoryError('');
@@ -656,6 +692,7 @@ export default function App() {
     if (eventResult.error) setHistoryError(t.billError);
     setSelected(customer.id);
     await Promise.all([loadCustomerEvents(customer.id), loadCustomerOrders(customer.id), loadCustomers()]);
+    await loadCalendarOrders();
     setOrderSaving(false); setOrderOpen(false);
   };
 
@@ -676,6 +713,15 @@ export default function App() {
 
   const formatConfidence = (value?: number) => value === undefined ? '' : `${Math.round(value * 100)}%`;
   const previewSrc = useMemo(() => photo ? URL.createObjectURL(photo) : '', [photo]);
+  const todayKey = localDateString();
+  const monthStart = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1);
+  const calendarCells = Array.from({ length: Math.ceil((monthStart.getDay() + new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 0).getDate()) / 7) * 7 }, (_, index) => {
+    const date = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), index - monthStart.getDay() + 1);
+    return { date, key: localDateString(date), inMonth: date.getMonth() === calendarMonth.getMonth() };
+  });
+  const deliveryOrdersOn = (date: string) => calendarOrders.filter((order) => order.due_date === date && order.status !== 'delivered' && order.status !== 'cancelled');
+  const selectedDayOrders = calendarOrders.filter((order) => order.due_date === calendarDate);
+  const customerForOrder = (order: CustomerOrder) => customers.find((customer) => customer.id === order.customer_id);
   useEffect(() => () => { if (previewSrc) URL.revokeObjectURL(previewSrc); }, [previewSrc]);
 
   return (
@@ -687,6 +733,7 @@ export default function App() {
         </div>
         <div className="top-actions">
           <div className="public-badge"><span className="status-dot" />{t.localData}</div>
+          <button className={`language-toggle calendar-toggle ${calendarView ? 'active' : ''}`} onClick={() => setCalendarView((value) => !value)} title={t.calendar} aria-label={t.calendar}><CalendarDays size={16} /><span>{t.calendar}</span></button>
           <button className="language-toggle" onClick={() => setLanguage(language === 'en' ? 'mr' : 'en')} title="Change language" aria-label="Change language">
             <Languages size={16} /><span>{language === 'en' ? 'मराठी' : 'English'}</span>
           </button>
@@ -697,10 +744,10 @@ export default function App() {
         <section className="page-heading">
           <div>
             <p className="eyebrow">SUNNY TAILOR · {t.subtitle.toLocaleUpperCase(language === 'mr' ? 'mr-IN' : 'en-IN')}</p>
-            <h1>{t.records}</h1>
-            <p className="heading-copy">{customers.length} {t.customers}</p>
+            <h1>{calendarView ? t.calendar : t.records}</h1>
+            <p className="heading-copy">{calendarView ? `${calendarOrders.length} ${t.order.toLocaleLowerCase(language === 'mr' ? 'mr-IN' : 'en-IN')}` : `${customers.length} ${t.customers}`}</p>
           </div>
-          <div className="heading-actions"><button className="secondary-button" onClick={() => { setBatchOpen(true); setBatchPhotos([]); setBatchError(''); setBatchStatus(''); setBatchProgress(0); }}><FileStack size={17} />{t.batch}</button><button className="secondary-button" onClick={() => startNewOrder('')}><Plus size={16} />{t.addBill}</button><button className="primary-button" onClick={startNew}><Plus size={18} />{t.add}</button></div>
+          <div className="heading-actions">{calendarView ? <><button className="secondary-button" onClick={() => { setCalendarDate(todayKey); setCalendarMonth(new Date()); }}>{t.todayWork}</button><button className="primary-button" onClick={() => startNewOrder('')}><Plus size={17} />{t.addBill}</button></> : <><button className="secondary-button" onClick={() => { setBatchOpen(true); setBatchPhotos([]); setBatchError(''); setBatchStatus(''); setBatchProgress(0); }}><FileStack size={17} />{t.batch}</button><button className="secondary-button" onClick={() => startNewOrder('')}><Plus size={16} />{t.addBill}</button><button className="primary-button" onClick={startNew}><Plus size={18} />{t.add}</button></>}</div>
         </section>
 
         {!isSupabaseConfigured ? (
@@ -708,7 +755,19 @@ export default function App() {
         ) : null}
         {loadError ? <section className="notice-card error-card"><AlertCircle size={19} /><div><strong>{t.connectionError}</strong><p>{loadError}</p><button className="text-button" onClick={() => void loadCustomers()}>{language === 'mr' ? 'पुन्हा प्रयत्न करा' : 'Try again'}</button></div></section> : null}
 
-        <div className="content-grid">
+        {calendarView ? <section className="calendar-layout">
+          <div className="calendar-panel panel">
+            <div className="calendar-toolbar"><button className="icon-button" aria-label={t.monthPrev} onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))}><ChevronLeft size={18} /></button><h2>{new Intl.DateTimeFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { month: 'long', year: 'numeric' }).format(calendarMonth)}</h2><button className="icon-button" aria-label={t.monthNext} onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))}><ChevronRight size={18} /></button></div>
+            <div className="calendar-grid">{Array.from({ length: 7 }, (_, index) => <div className="calendar-weekday" key={`weekday-${index}`}>{new Intl.DateTimeFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { weekday: 'short' }).format(new Date(2024, 0, 7 + index))}</div>)}
+              {calendarCells.map(({ date, key, inMonth }) => { const count = deliveryOrdersOn(key).length; return <button key={key} className={`calendar-day ${inMonth ? '' : 'outside'} ${calendarDate === key ? 'chosen' : ''} ${key === todayKey ? 'today' : ''}`} onClick={() => setCalendarDate(key)}><span>{new Intl.DateTimeFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { day: 'numeric' }).format(date)}</span>{count > 0 && <small>{count}</small>}</button>; })}
+            </div>
+            <div className="calendar-legend"><span><i />{t.dueDate}</span><small>{calendarOrders.filter((order) => order.due_date).length} {t.order.toLocaleLowerCase(language === 'mr' ? 'mr-IN' : 'en-IN')}</small></div>
+          </div>
+          <aside className="calendar-work panel">{calendarError && <p className="inline-error history-error"><AlertCircle size={15} />{calendarError}</p>}
+            <section className="calendar-work-section"><h2>{t.todayWork}</h2><p className="calendar-date-heading">{formatDate(`${todayKey}T12:00:00`, language)}</p>{deliveryOrdersOn(todayKey).length ? <div className="calendar-order-list">{deliveryOrdersOn(todayKey).map((order) => <CalendarOrderCard key={order.id} order={order} customerName={customerForOrder(order)?.name || ''} t={t} language={language} onComplete={() => void updateCalendarOrder(order, { status: 'delivered' })} onReschedule={(date) => void updateCalendarOrder(order, { due_date: date })} />)}</div> : <p className="calendar-empty">{t.noWork}</p>}</section>
+            {calendarDate !== todayKey && <section className="calendar-work-section selected-work"><h3>{formatDate(`${calendarDate}T12:00:00`, language)}</h3>{selectedDayOrders.length ? <div className="calendar-order-list">{selectedDayOrders.map((order) => <CalendarOrderCard key={order.id} order={order} customerName={customerForOrder(order)?.name || ''} t={t} language={language} onComplete={() => void updateCalendarOrder(order, { status: 'delivered' })} onReschedule={(date) => void updateCalendarOrder(order, { due_date: date })} />)}</div> : <p className="calendar-empty">{t.noWork}</p>}</section>}
+          </aside>
+        </section> : <div className="content-grid">
           <section className="list-panel panel">
             <div className="list-toolbar">
               <div className="search-wrap"><Search size={18} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t.search} aria-label={t.search} /></div>
@@ -790,7 +849,7 @@ export default function App() {
               </div>
             </> : <div className="detail-placeholder"><div className="placeholder-icon"><Scissors size={24} /></div><h2>{language === 'mr' ? 'ग्राहक निवडा' : 'Choose a customer'}</h2><p>{language === 'mr' ? 'संपर्क आणि मापे पाहण्यासाठी यादीतील नोंद निवडा.' : 'Select a record to view contact details and measurements.'}</p></div>}
           </aside>
-        </div>
+        </div>}
         <footer className="page-footer"><span>Sunny Tailor · {language === 'mr' ? 'ग्राहक आणि मापे' : 'Customer & measurement book'}</span><span><span className="status-dot" />{t.localData}</span></footer>
       </main>
 
@@ -839,7 +898,7 @@ export default function App() {
                 <label className="field"><span>{t.advanceAmount}</span><input type="number" min="0" step="0.01" disabled={Boolean(editingOrderId)} value={orderDraft.advance_amount} onChange={(event) => setOrderDraft((current) => ({ ...current, advance_amount: event.target.value }))} /></label>
                 <label className="field"><span>{t.advanceMethod}</span><select disabled={Boolean(editingOrderId)} value={orderDraft.advance_method} onChange={(event) => setOrderDraft((current) => ({ ...current, advance_method: event.target.value }))}><option value="cash">{t.cash}</option><option value="upi">UPI</option><option value="other">{t.otherMethod}</option></select></label>
                 <div className="order-balance-preview full-field"><span>{t.remainingAfterAdvance}</span><strong>{orderDraft.total_amount.trim() && Number.isFinite(orderDraftTotal) ? formatMoney(orderDraftBalance) : '—'}</strong></div>
-                <label className="field"><span>{t.dueDate}</span><input type="date" value={orderDraft.due_date} onChange={(event) => setOrderDraft((current) => ({ ...current, due_date: event.target.value }))} /></label>
+                <label className="field"><span>{t.dueDate}</span><input type="date" value={orderDraft.due_date} onChange={(event) => setOrderDraft((current) => ({ ...current, due_date: event.target.value }))} /><small className="field-hint">{t.calendarNote}</small></label>
                 <label className="field full-field"><span>{t.orderNotes}</span><textarea rows={2} value={orderDraft.notes} onChange={(event) => setOrderDraft((current) => ({ ...current, notes: event.target.value }))} /></label>
               </div></section>
               {orderCustomerId && <p className="order-snapshot-note"><Check size={15} />{t.attachedMeasurements} {Object.values(customers.find((customer) => customer.id === orderCustomerId)?.measurements ?? {}).filter(Boolean).length}</p>}
