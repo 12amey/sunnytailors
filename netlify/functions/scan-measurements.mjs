@@ -85,9 +85,11 @@ Return one JSON object matching the supplied schema. Copy the customer name and 
   let upstream;
   try {
     upstream = await requestModel(model);
-    if (upstream.status === 503 && model !== 'gemini-3.6-flash') {
-      console.warn('Gemini 3.8/selected model is under high demand; retrying with gemini-3.6-flash.');
-      upstream = await requestModel('gemini-3.6-flash');
+    for (const fallback of ['gemini-3.6-flash', 'gemini-3.5-flash-lite']) {
+      if (upstream.status !== 503) break;
+      if (fallback === model) continue;
+      console.warn(`Gemini model ${model} is under high demand; retrying with ${fallback}.`);
+      upstream = await requestModel(fallback);
     }
   } catch {
     return jsonResponse(502, { error: 'Could not reach Google Gemini. Try again in a moment.' });
