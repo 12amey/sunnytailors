@@ -44,6 +44,8 @@ function explainGeminiFailure(status, details) {
   return `Gemini request failed (HTTP ${status}). Check the key, model, and API access.${suffix}`;
 }
 
+const isTimeoutError = (error) => error?.name === 'TimeoutError' || error?.name === 'AbortError';
+
 export default async (request) => {
   if (request.method !== 'POST') return jsonResponse(405, { error: 'Use POST to scan an image.' });
   if (!process.env.GEMINI_API_KEY) return jsonResponse(503, { error: 'Add GEMINI_API_KEY to Netlify environment variables to enable image scanning.' });
@@ -73,9 +75,11 @@ export default async (request) => {
 Return one JSON object matching the supplied schema. Copy the customer name and phone exactly if legible. Extract the measurement date as YYYY-MM-DD only when the year is clearly written; if only day and month are visible, leave the date empty and preserve that text in measurement_notes. Map only clearly matching measurements to these fixed keys: height, blouse_back_length, chest, waist, arm_length, arm_measurements, pants_length, top_length, hip, sleeve_length, sleeve_width, front_neck, back_neck. Tailor-specific Marathi clues: उंची means height; पाठीची लांबी/ब्लाउज मागची लांबी means blouse_back_length; छाती or छातीचा घेर means chest; कंबर means waist; बाहीची लांबी means arm_length; paired बाही measurements or a written range such as ११-१० belongs in arm_measurements and should be preserved as one value; पुढचा गळा/गळा पुढे means front_neck. Follow this shop's known notebook order when labels are faint: a sequence like 14 1/2 - 10 1/2 - 36 - 29 - 10 means height, blouse_back_length, chest, waist, arm_length. A separate range like 11 1/2-10 1/2 is arm_measurements; 6 1/2 is front_neck. Do not misclassify the second value as back_neck unless a back-neck label is explicitly present. Keep values exactly as written, including Marathi digits and units. Do not convert units. Do not guess or infer. If a field is missing, unclear, or not visible, return an empty value and confidence 0. Confidence is a number from 0 to 1 for how clearly the text is readable. Use notes for other clear customer-specific instructions, garment_type for an explicitly written garment, and measurement_notes for units or general measurement context. Do not treat printed page labels as customer values.`;
 
   const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  const fallbackModel = 'gemini-3.5-flash-lite';
   const requestModel = (modelName) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(modelName)}:generateContent`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': process.env.GEMINI_API_KEY },
+    signal: AbortSignal.timeout(9_000),
     body: JSON.stringify({
       contents: [{ parts: [{ inline_data: { mime_type: mimeType, data: input.image } }, { text: prompt }] }],
       // Gemini 3.8 no longer accepts temperature/topP/topK overrides.
@@ -83,17 +87,22 @@ Return one JSON object matching the supplied schema. Copy the customer name and 
     }),
   });
   let upstream;
+  let primaryTimedOut = false;
   try {
-    upstream = await requestModel(model);
-    for (const fallback of ['gemini-3.6-flash', 'gemini-3.5-flash-lite']) {
-      if (upstream.status !== 503) break;
-      if (fallback === model) continue;
-      console.warn(`Gemini model ${model} is under high demand; retrying with ${fallback}.`);
-      upstream = await requestModel(fallback);
+    try { upstream = await requestModel(model); }
+    catch (error) { if (isTimeoutError(error)) primaryTimedOut = true; else throw error; }
+    if ((primaryTimedOut || upstream?.status === 503) && model !== fallbackModel) {
+      console.warn(`Gemini model ${model} is overloaded or timed out; trying ${fallbackModel}.`);
+      try { upstream = await requestModel(fallbackModel); }
+      catch (error) {
+        if (isTimeoutError(error)) return jsonResponse(503, { error: 'Gemini is overloaded and did not respond in time. Wait a little and try again.' });
+        throw error;
+      }
     }
   } catch {
     return jsonResponse(502, { error: 'Could not reach Google Gemini. Try again in a moment.' });
   }
+  if (!upstream) return jsonResponse(503, { error: 'Gemini did not respond in time. Wait a little and try again.' });
 
   if (!upstream.ok) {
     const details = await upstream.json().catch(() => ({}));
