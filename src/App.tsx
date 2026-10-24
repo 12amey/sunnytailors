@@ -20,6 +20,7 @@ const copy = {
     newCustomer: 'New customer', editCustomer: 'Edit customer', basic: 'Customer details', measurements: 'Measurements',
     name: 'Name', phone: 'Phone number', garment: 'Garment type', notes: 'Customer notes',
     date: 'Measurement date',
+    chooseGarment: 'Choose garment type', blouseOption: 'Blouse', dressOption: 'Dress', nineVaariOption: '9 vaari', otherOption: 'Other', otherGarmentPlaceholder: 'Enter garment type',
     measureNotes: 'Measurement notes', namePlaceholder: 'Customer name', phonePlaceholder: 'Phone number',
     garmentPlaceholder: 'e.g. Blouse, dress, trousers', notesPlaceholder: 'Style preferences, fitting notes…',
     measureNotesPlaceholder: 'Extra notes about these measurements…', save: 'Save customer', saving: 'Saving…',
@@ -51,6 +52,7 @@ const copy = {
     newCustomer: 'नवीन ग्राहक', editCustomer: 'ग्राहकाची नोंद बदला', basic: 'ग्राहकाची माहिती', measurements: 'मापे',
     name: 'नाव', phone: 'फोन नंबर', garment: 'कपड्याचा प्रकार', notes: 'ग्राहकाबद्दल नोंद',
     date: 'मापाची तारीख',
+    chooseGarment: 'कपड्याचा प्रकार निवडा', blouseOption: 'ब्लाउज', dressOption: 'ड्रेस', nineVaariOption: '९ वारी', otherOption: 'इतर', otherGarmentPlaceholder: 'कपड्याचा प्रकार लिहा',
     measureNotes: 'मापांबद्दल नोंद', namePlaceholder: 'ग्राहकाचे नाव', phonePlaceholder: 'फोन नंबर',
     garmentPlaceholder: 'उदा. ब्लाउज, ड्रेस, पँट', notesPlaceholder: 'आवड, फिटिंगविषयी नोंद…',
     measureNotesPlaceholder: 'या मापांबद्दल इतर नोंद…', save: 'ग्राहक जतन करा', saving: 'जतन होत आहे…',
@@ -85,6 +87,24 @@ const normalizeSearch = (value: string) => value
   .normalize('NFKC')
   .replace(/[०-९]/g, (digit) => String('०१२३४५६७८९'.indexOf(digit)))
   .toLocaleLowerCase();
+
+const garmentCategory = (value: string) => {
+  const normalized = normalizeSearch(value.trim());
+  if (['blouse', 'ब्लाउज', 'चोळी'].includes(normalized)) return 'blouse';
+  if (['dress', 'ड्रेस', 'पोशाख'].includes(normalized)) return 'dress';
+  if (['9 vaari', '9 वारी', '9वारी', '९वारी', 'nauvari', 'navvari', 'नऊवारी'].includes(normalized)) return 'nine-vaari';
+  return value.trim() ? 'other' : '';
+};
+
+const garmentAliases = (value: string) => {
+  const category = garmentCategory(value);
+  const aliases: Record<string, string[]> = {
+    blouse: ['Blouse', 'ब्लाउज', 'चोळी'],
+    dress: ['Dress', 'ड्रेस', 'पोशाख'],
+    'nine-vaari': ['9 vaari', '9वारी', '९ वारी', '९वारी', 'nauvari', 'नऊवारी'],
+  };
+  return [value, ...(aliases[category] ?? [])];
+};
 
 const formatDate = (value: string, language: Language) => new Intl.DateTimeFormat(language === 'mr' ? 'mr-IN' : 'en-IN', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
 
@@ -137,6 +157,7 @@ export default function App() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<CustomerDraft>(emptyDraft());
+  const [garmentChoice, setGarmentChoice] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [scanning, setScanning] = useState(false);
@@ -176,7 +197,7 @@ export default function App() {
     const needle = normalizeSearch(query.trim());
     if (!needle) return customers;
     return customers.filter((customer) => {
-      const values = [customer.name, customer.phone, customer.notes, customer.garment_type, customer.measurement_notes, customer.measurement_date];
+      const values = [customer.name, customer.phone, customer.notes, ...garmentAliases(customer.garment_type), customer.measurement_notes, customer.measurement_date];
       for (const [key, value] of Object.entries(customer.measurements ?? {})) {
         values.push(value ?? '', labels.en[key as MeasurementField] ?? '', labels.mr[key as MeasurementField] ?? '');
       }
@@ -186,13 +207,14 @@ export default function App() {
   const activeCustomer = customers.find((customer) => customer.id === selected) ?? null;
 
   const startNew = () => {
-    setEditingId(null); setDraft(emptyDraft()); setFormError(''); setScanMessage(''); setScanError('');
+    setEditingId(null); setDraft(emptyDraft()); setGarmentChoice(''); setFormError(''); setScanMessage(''); setScanError('');
     setScanResult(null); setPhoto(null); setRotation(0); setFormOpen(true);
   };
 
   const startEdit = (customer: Customer) => {
     setEditingId(customer.id);
     setDraft({ name: customer.name, phone: customer.phone ?? '', notes: customer.notes ?? '', garment_type: customer.garment_type ?? '', measurements: customer.measurements ?? {}, measurement_notes: customer.measurement_notes ?? '', measurement_date: customer.measurement_date ?? '' });
+    setGarmentChoice(garmentCategory(customer.garment_type));
     setFormError(''); setScanMessage(''); setScanError(''); setScanResult(null); setPhoto(null); setRotation(0); setFormOpen(true);
   };
 
@@ -221,6 +243,7 @@ export default function App() {
       if (response.status === 503) throw new Error(t.scanNeedKey);
       const result = body.result as ScanResult;
       setScanResult(result);
+      if (result.garment_type?.value) setGarmentChoice(garmentCategory(result.garment_type.value));
       setDraft((current) => ({
         ...current,
         name: result.name?.value || current.name,
@@ -431,7 +454,14 @@ export default function App() {
                 <div className="form-grid"><label className="field full-field"><span>{t.name} <b>*</b></span><input autoFocus required value={draft.name} onChange={(event) => setDraft({ ...draft, name: event.target.value })} placeholder={t.namePlaceholder} dir="auto" /></label>
                   <label className="field"><span>{t.date}</span><input type="date" value={draft.measurement_date} onChange={(event) => setDraft({ ...draft, measurement_date: event.target.value })} aria-label={t.datePlaceholder} /></label>
                   <label className="field"><span>{t.phone}</span><input type="tel" inputMode="tel" value={draft.phone} onChange={(event) => setDraft({ ...draft, phone: event.target.value })} placeholder={t.phonePlaceholder} dir="auto" /></label>
-                  <label className="field"><span>{t.garment}</span><input value={draft.garment_type} onChange={(event) => setDraft({ ...draft, garment_type: event.target.value })} placeholder={t.garmentPlaceholder} dir="auto" /></label>
+                  <label className="field"><span>{t.garment}</span><select value={garmentChoice} onChange={(event) => {
+                    const choice = event.target.value;
+                    setGarmentChoice(choice);
+                    const options: Record<string, [string, string]> = { blouse: ['Blouse', 'ब्लाउज'], dress: ['Dress', 'ड्रेस'], 'nine-vaari': ['9 vaari', '९ वारी'] };
+                    setDraft((current) => ({ ...current, garment_type: options[choice]?.[language === 'mr' ? 1 : 0] ?? (choice === 'other' && garmentChoice === 'other' ? current.garment_type : '') }));
+                  }}>
+                    <option value="">{t.chooseGarment}</option><option value="blouse">{t.blouseOption}</option><option value="dress">{t.dressOption}</option><option value="nine-vaari">{t.nineVaariOption}</option><option value="other">{t.otherOption}</option>
+                  </select>{garmentChoice === 'other' && <input value={draft.garment_type} onChange={(event) => setDraft({ ...draft, garment_type: event.target.value })} placeholder={t.otherGarmentPlaceholder} dir="auto" />}</label>
                   <label className="field full-field"><span>{t.notes}</span><textarea rows={2} value={draft.notes} onChange={(event) => setDraft({ ...draft, notes: event.target.value })} placeholder={t.notesPlaceholder} dir="auto" /></label>
                 </div>
               </section>

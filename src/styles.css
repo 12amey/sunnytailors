@@ -179,9 +179,9 @@ input, textarea { color: var(--ink); }
 .field > span { display: flex; align-items: center; gap: 5px; }
 .field b { color: #d25b6c; font-size: 12px; }
 .field em { margin-left: auto; color: #9b96a9; font-size: 9px; font-style: normal; font-weight: 500; }
-.field input, .field textarea { width: 100%; border: 1px solid #e9e7ee; border-radius: 8px; padding: 10px 11px; outline: none; background: #fff; font-size: 12px; font-weight: 400; transition: border .15s, box-shadow .15s; }
+.field input, .field textarea, .field select { width: 100%; border: 1px solid #e9e7ee; border-radius: 8px; padding: 10px 11px; outline: none; background: #fff; font-size: 12px; font-weight: 400; transition: border .15s, box-shadow .15s; }
 .field input::placeholder, .field textarea::placeholder { color: #b0adba; }
-.field input:focus, .field textarea:focus { border-color: #a18cec; box-shadow: 0 0 0 3px #7652ee14; }
+.field input:focus, .field textarea:focus, .field select:focus { border-color: #a18cec; box-shadow: 0 0 0 3px #7652ee14; }
 .field textarea { min-height: 68px; resize: vertical; line-height: 1.5; }
 .field.full-field { grid-column: 1 / -1; }
 .measurement-input-grid { margin-bottom: 12px; }
@@ -238,6 +238,6 @@ input, textarea { color: var(--ink); }
   .scan-button { width: 100%; }
   .form-grid { gap: 10px; }
   .measurement-input-grid { grid-template-columns: 1fr 1fr; }
-  .field input, .field textarea { padding: 9px; font-size: 11px; }
+  .field input, .field textarea, .field select { padding: 9px; font-size: 11px; }
   .field { font-size: 10px; }
 }
